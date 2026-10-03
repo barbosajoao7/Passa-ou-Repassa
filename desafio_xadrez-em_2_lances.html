@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio em 2 Lances</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px 10px;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .header-banner {
+            background: #2563eb;
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 1.05rem;
+            padding: 10px 22px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+            text-align: center;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: min(90vw, 450px);
+            background: #1e1e1e;
+            padding: 12px 18px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #2d2d2d;
+        }
+
+        .timer-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #facc15;
+        }
+
+        .step-badge {
+            background: #1e293b;
+            color: #38bdf8;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            border: 1px solid #334155;
+        }
+
+        .attempts-box {
+            font-size: 0.9rem;
+            color: #a1a1aa;
+            font-weight: 600;
+        }
+
+        .attempts-box span {
+            color: #ffffff;
+            font-size: 1.1rem;
+        }
+
+        #board-wrapper {
+            position: relative;
+            width: min(90vw, 450px);
+            height: min(90vw, 450px);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 4px solid #334155;
+        }
+
+        #chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 100%;
+            height: 100%;
+            background-color: #6c82a6;
+        }
+
+        .square {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .square.light {
+            background: linear-gradient(145deg, #f0d9b5, #e8cfa5);
+        }
+
+        .square.dark {
+            background: linear-gradient(145deg, #b58863, #9f7653);
+        }
+
+        .square.selected {
+            background-color: #8bb1d8 !important;
+        }
+
+        .square.last-move {
+            background-color: rgba(250, 204, 21, 0.4) !important;
+        }
+
+        .coord {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 800;
+            pointer-events: none;
+        }
+
+        .coord.file {
+            bottom: 2px;
+            right: 4px;
+        }
+
+        .coord.rank {
+            top: 2px;
+            left: 4px;
+        }
+
+        .square.light .coord { color: #5a7094; }
+        .square.dark .coord { color: #dce4ec; }
+
+        .piece-img {
+            width: 88%;
+            height: 88%;
+            cursor: grab;
+            z-index: 5;
+            touch-action: none;
+            object-fit: contain;
+            filter:
+                drop-shadow(0 2px 1px rgba(0,0,0,0.55))
+                drop-shadow(0 6px 5px rgba(0,0,0,0.35));
+            transition: transform 0.12s ease, filter 0.12s ease;
+        }
+
+        .piece-img:hover {
+            transform: translateY(-2px) scale(1.035);
+            filter:
+                drop-shadow(0 3px 1px rgba(0,0,0,0.6))
+                drop-shadow(0 8px 7px rgba(0,0,0,0.38));
+        }
+
+        .piece-img:active {
+            cursor: grabbing;
+            transform: translateY(1px) scale(0.98);
+        }
+
+        #drag-avatar {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            width: 55px;
+            height: 55px;
+            transform: translate(-50%, -50%);
+            display: none;
+            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5));
+        }
+
+        .msg-box {
+            margin-top: 8px;
+            height: 8px;
+            font-size: 0;
+            text-align: center;
+            visibility: hidden;
+        }
+
+        .actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-giveup {
+            background: #ef4444;
+            color: #ffffff;
+            border: none;
+            padding: 10px 28px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-giveup:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay h2 {
+            font-size: 2.2rem;
+            margin: 0 0 10px 0;
+        }
+
+        .overlay p {
+            font-size: 1.1rem;
+            color: #cbd5e1;
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+        }
+
+        .btn-restart {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-banner">DESAFIO EM 2 LANCES: DÊ XEQUE-MATE!</div>
+
+    <div class="status-container">
+        <div class="timer-box">
+            ⏱️ <span id="timer-text">01:00</span>
+        </div>
+        <div class="step-badge" id="step-badge">Lance 1 de 2</div>
+        <div class="attempts-box">
+            Erros: <span id="attempts-count">0</span>
+        </div>
+    </div>
+
+    <div id="board-wrapper">
+        <div id="chessboard"></div>
+        <div id="overlay" class="overlay">
+            <h2 id="modal-title"></h2>
+            <p id="modal-desc"></p>
+            <button class="btn-restart" onclick="fullReset()">Tentar Novamente</button>
+        </div>
+    </div>
+
+    <div class="msg-box" id="msg-text" aria-live="polite"></div>
+
+    <div class="actions">
+        <button class="btn-giveup" onclick="giveUp()">Desistir</button>
+    </div>
+
+    <img id="drag-avatar" src="" alt="">
+
+    <script>
+        const SVGS = {
+            'P': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23ffffff"/><stop offset=".45" stop-color="%23f4f4f4"/><stop offset="1" stop-color="%23bdbdbd"/></linearGradient></defs><circle cx="50" cy="27" r="14" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M39 40c-2 9 1 16 8 20-10 5-15 12-16 22h38c-1-10-6-17-16-22 7-4 10-11 8-20z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M25 82h50v8H25z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/></svg>`,
+            'R': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23ffffff"/><stop offset=".5" stop-color="%23eeeeee"/><stop offset="1" stop-color="%23aaa"/></linearGradient></defs><path d="M25 15h10v12h10V15h10v12h10V15h10v18H25z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M32 33h36l-4 39H36z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M25 72h50v8H25zM20 80h60v9H20z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/></svg>`,
+            'N': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="wn2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23ffffff"/><stop offset=".5" stop-color="%23dddddd"/><stop offset="1" stop-color="%23999999"/></linearGradient></defs><path d="M28 82c1-10 5-18 12-24 5-4 7-9 6-15-1-6-5-10-10-13l-8-4 5-8 5 6 3-11 7 7c9 1 17 6 22 14 5 8 6 17 3 26-3 9-9 15-17 20-5 3-8 5-9 8z" fill="url(%23wn2)" stroke="%23202020" stroke-width="3" stroke-linejoin="round"/><path d="M34 27c-4 3-8 8-10 14l-9 9c-2 2-1 5 2 6l13 2c5-2 8-5 10-9l4-9c-2-5-5-9-10-13z" fill="url(%23wn2)" stroke="%23202020" stroke-width="3" stroke-linejoin="round"/><path d="M22 50l13-1M28 58c6-1 11-4 14-8" fill="none" stroke="%23707070" stroke-width="2" stroke-linecap="round"/><circle cx="35" cy="35" r="2.4" fill="%23202020"/><path d="M25 82h50v9H25z" fill="url(%23wn2)" stroke="%23202020" stroke-width="3"/></svg>`,
+            'B': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fff"/><stop offset=".5" stop-color="%23ddd"/><stop offset="1" stop-color="%23aaa"/></linearGradient></defs><circle cx="50" cy="18" r="7" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M50 25c-13 12-17 25-10 37 3 5 7 8 10 9 3-1 7-4 10-9 7-12 3-25-10-37z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M43 31l14 22" stroke="%23222222" stroke-width="4"/><path d="M29 71h42v9H29zM23 80h54v9H23z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/></svg>`,
+            'Q': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fff"/><stop offset=".5" stop-color="%23e5e5e5"/><stop offset="1" stop-color="%23aaa"/></linearGradient></defs><path d="M23 20l14 13 13-22 13 22 14-13-6 39H29z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M30 59h40l-4 17H34z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M23 76h54v8H23zM19 84h62v7H19z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/></svg>`,
+            'K': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23fff"/><stop offset=".5" stop-color="%23e5e5e5"/><stop offset="1" stop-color="%23aaa"/></linearGradient></defs><path d="M50 9v23M39 20h22" stroke="%23222222" stroke-width="6"/><path d="M31 34c0 14 8 22 19 27 11-5 19-13 19-27-10-6-28-6-38 0z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M34 61h32l5 16H29z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/><path d="M22 77h56v8H22zM18 85h64v7H18z" fill="url(%23w)" stroke="%23222222" stroke-width="3"/></svg>`,
+            'p': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23555555"/><stop offset=".5" stop-color="%23222222"/><stop offset="1" stop-color="%23050505"/></linearGradient></defs><circle cx="50" cy="27" r="14" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M39 40c-2 9 1 16 8 20-10 5-15 12-16 22h38c-1-10-6-17-16-22 7-4 10-11 8-20z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M25 82h50v8H25z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/></svg>`,
+            'r': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23555555"/><stop offset=".5" stop-color="%23222222"/><stop offset="1" stop-color="%23050505"/></linearGradient></defs><path d="M25 15h10v12h10V15h10v12h10V15h10v18H25z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M32 33h36l-4 39H36z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M25 72h50v8H25zM20 80h60v9H20z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/></svg>`,
+            'n': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="bn2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%235f5f5f"/><stop offset=".5" stop-color="%23333333"/><stop offset="1" stop-color="%23141414"/></linearGradient></defs><path d="M28 82c1-10 5-18 12-24 5-4 7-9 6-15-1-6-5-10-10-13l-8-4 5-8 5 6 3-11 7 7c9 1 17 6 22 14 5 8 6 17 3 26-3 9-9 15-17 20-5 3-8 5-9 8z" fill="url(%23bn2)" stroke="%23090909" stroke-width="3" stroke-linejoin="round"/><path d="M34 27c-4 3-8 8-10 14l-9 9c-2 2-1 5 2 6l13 2c5-2 8-5 10-9l4-9c-2-5-5-9-10-13z" fill="url(%23bn2)" stroke="%23090909" stroke-width="3" stroke-linejoin="round"/><path d="M22 50l13-1M28 58c6-1 11-4 14-8" fill="none" stroke="%23888888" stroke-width="2" stroke-linecap="round"/><circle cx="35" cy="35" r="2.4" fill="%23e0e0e0"/><path d="M25 82h50v9H25z" fill="url(%23bn2)" stroke="%23090909" stroke-width="3"/></svg>`,
+            'b': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23555555"/><stop offset=".5" stop-color="%23222222"/><stop offset="1" stop-color="%23050505"/></linearGradient></defs><circle cx="50" cy="18" r="7" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M50 25c-13 12-17 25-10 37 3 5 7 8 10 9 3-1 7-4 10-9 7-12 3-25-10-37z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M43 31l14 22" stroke="%23eeeeee" stroke-width="3"/><path d="M29 71h42v9H29zM23 80h54v9H23z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/></svg>`,
+            'q': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23555555"/><stop offset=".5" stop-color="%23222222"/><stop offset="1" stop-color="%23050505"/></linearGradient></defs><path d="M23 20l14 13 13-22 13 22 14-13-6 39H29z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M30 59h40l-4 17H34z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M23 76h54v8H23zM19 84h62v7H19z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/></svg>`,
+            'k': `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="%23555555"/><stop offset=".5" stop-color="%23222222"/><stop offset="1" stop-color="%23050505"/></linearGradient></defs><path d="M50 9v23M39 20h22" stroke="%23eeeeee" stroke-width="5"/><path d="M31 34c0 14 8 22 19 27 11-5 19-13 19-27-10-6-28-6-38 0z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M34 61h32l5 16H29z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/><path d="M22 77h56v8H22zM18 85h64v7H18z" fill="url(%23b)" stroke="%23eeeeee" stroke-width="2"/></svg>`
+        };
+
+        // Posição inicial EXATA da imagem enviada (Dama em h5, Cavalo preto em c6)
+        const initialBoard = [
+            ['r', '.', 'b', 'q', 'k', 'b', 'n', 'r'],
+            ['p', 'p', 'p', 'p', '.', 'p', 'p', 'p'],
+            ['.', '.', 'n', '.', '.', '.', '.', '.'],
+            ['.', '.', '.', '.', 'p', '.', '.', 'Q'],
+            ['.', '.', '.', '.', 'P', '.', '.', '.'],
+            ['.', '.', '.', '.', '.', '.', '.', '.'],
+            ['P', 'P', 'P', 'P', '.', 'P', 'P', 'P'],
+            ['R', 'N', 'B', '.', 'K', 'B', 'N', 'R']
+        ];
+
+        let board = JSON.parse(JSON.stringify(initialBoard));
+        let selectedSq = null;
+        let step = 1;
+        let timerSeconds = 60;
+        let timerInterval = null;
+        let attempts = 0;
+        let gameActive = true;
+        let isWaitingReset = false;
+        let isWaitingOpponent = false;
+        let firstMoveCorrect = false;
+
+        let dragPiece = null;
+        let dragFrom = null;
+
+        const boardEl = document.getElementById('chessboard');
+        const boardWrapper = document.getElementById('board-wrapper');
+        const msgEl = document.getElementById('msg-text');
+        const timerEl = document.getElementById('timer-text');
+        const attemptsEl = document.getElementById('attempts-count');
+        const stepBadge = document.getElementById('step-badge');
+        const overlayEl = document.getElementById('overlay');
+        const dragAvatar = document.getElementById('drag-avatar');
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'move') {
+                osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(160, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(110, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } else if (type === 'win') {
+                [440, 554, 659, 880].forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.1);
+                    g.gain.setValueAtTime(0.3, audioCtx.currentTime + idx * 0.1);
+                    g.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.1 + 0.2);
+                    o.start(audioCtx.currentTime + idx * 0.1);
+                    o.stop(audioCtx.currentTime + idx * 0.1 + 0.2);
+                });
+            }
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerSeconds = 60;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                if (!gameActive) return;
+                timerSeconds--;
+                updateTimerDisplay();
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    endGame(false, "O tempo esgotou!");
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+            const s = (timerSeconds % 60).toString().padStart(2, '0');
+            timerEl.textContent = `${m}:${s}`;
+        }
+
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            const files = ['a','b','c','d','e','f','g','h'];
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const square = document.createElement('div');
+                    const isLight = (r + c) % 2 === 0;
+                    square.className = `square ${isLight ? 'light' : 'dark'}`;
+                    square.dataset.row = r;
+                    square.dataset.col = c;
+
+                    if (c === 7) {
+                        const rankCoord = document.createElement('span');
+                        rankCoord.className = 'coord rank';
+                        rankCoord.textContent = 8 - r;
+                        square.appendChild(rankCoord);
+                    }
+                    if (r === 7) {
+                        const fileCoord = document.createElement('span');
+                        fileCoord.className = 'coord file';
+                        fileCoord.textContent = files[c];
+                        square.appendChild(fileCoord);
+                    }
+
+                    const piece = board[r][c];
+                    if (piece !== '.') {
+                        const img = document.createElement('img');
+                        img.src = SVGS[piece];
+                        img.className = 'piece-img';
+                        img.draggable = false;
+                        square.appendChild(img);
+                    }
+
+                    if (selectedSq && selectedSq.r === r && selectedSq.c === c) {
+                        square.classList.add('selected');
+                    }
+
+                    square.addEventListener('click', () => handleSquareClick(r, c));
+                    boardEl.appendChild(square);
+                }
+            }
+            setupDragAndDrop();
+        }
+
+        function handleSquareClick(r, c) {
+            if (!gameActive || isWaitingReset || isWaitingOpponent) return;
+
+            const piece = board[r][c];
+            const isWhite = piece !== '.' && piece === piece.toUpperCase();
+
+            if (isWhite) {
+                selectedSq = { r, c };
+                renderBoard();
+                return;
+            }
+
+            if (selectedSq) {
+                processMove(selectedSq.r, selectedSq.c, r, c);
+            }
+        }
+
+        function setupDragAndDrop() {
+            const squares = document.querySelectorAll('.square');
+
+            squares.forEach(sq => {
+                sq.addEventListener('pointerdown', (e) => {
+                    if (!gameActive || isWaitingReset || isWaitingOpponent) return;
+                    const r = parseInt(sq.dataset.row);
+                    const c = parseInt(sq.dataset.col);
+                    const piece = board[r][c];
+
+                    if (piece !== '.' && piece === piece.toUpperCase()) {
+                        e.preventDefault();
+                        dragPiece = piece;
+                        dragFrom = { r, c };
+
+                        dragAvatar.src = SVGS[piece];
+                        dragAvatar.style.display = 'block';
+                        updateAvatarPos(e.clientX, e.clientY);
+                    }
+                });
+            });
+        }
+
+        window.addEventListener('pointermove', (e) => {
+            if (!dragPiece) return;
+            updateAvatarPos(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (!dragPiece) return;
+
+            dragAvatar.style.display = 'none';
+            const elem = document.elementFromPoint(e.clientX, e.clientY);
+            const sq = elem ? elem.closest('.square') : null;
+
+            if (sq && dragFrom) {
+                const toR = parseInt(sq.dataset.row);
+                const toC = parseInt(sq.dataset.col);
+                processMove(dragFrom.r, dragFrom.c, toR, toC);
+            }
+
+            dragPiece = null;
+            dragFrom = null;
+        });
+
+        function updateAvatarPos(x, y) {
+            dragAvatar.style.left = x + 'px';
+            dragAvatar.style.top = y + 'px';
+        }
+
+        function processMove(fromR, fromC, toR, toC) {
+            selectedSq = null;
+            const piece = board[fromR][fromC];
+
+            // LANCE 1: qualquer primeira jogada é aceita provisoriamente.
+            // A primeira jogada pode estar errada, mas o resultado só será
+            // decidido depois que o jogador fizer a segunda jogada.
+            if (step === 1) {
+                const firstMoveIsCorrect =
+                    piece === 'B' && fromR === 7 && fromC === 5 && toR === 4 && toC === 2;
+
+                // Guarda se o primeiro lance fez parte da solução.
+                firstMoveCorrect = firstMoveIsCorrect;
+
+                // Executa a jogada escolhida pelo jogador, mesmo que não seja a solução.
+                executeMove(fromR, fromC, toR, toC);
+                playSound('move');
+                msgEl.textContent = "";
+                isWaitingOpponent = true;
+
+                // As pretas respondem após qualquer primeira jogada.
+                setTimeout(() => {
+                    executeMove(0, 6, 2, 5);
+                    playSound('move');
+                    step = 2;
+                    stepBadge.textContent = "Lance 2 de 2";
+                    isWaitingOpponent = false;
+                    msgEl.textContent = "";
+                }, 600);
+            }
+            // LANCE 2: somente aqui o resultado do desafio é decidido.
+            else if (step === 2) {
+                const secondMoveIsCorrect =
+                    piece === 'Q' && fromR === 3 && fromC === 7 && toR === 1 && toC === 5;
+
+                // A vitória exige os dois lances corretos. Mesmo que o primeiro
+                // tenha sido errado, esperamos a segunda jogada para declarar a derrota.
+                if (firstMoveCorrect && secondMoveIsCorrect) {
+                    executeMove(fromR, fromC, toR, toC);
+                    playSound('win');
+                    msgEl.textContent = "XEQUE-MATE!";
+                    setTimeout(() => {
+                        endGame(true, "Parabéns! Você executou o mate perfeito em 2 lances!");
+                    }, 500);
+                } else {
+                    triggerError();
+                }
+            }
+        }
+
+        function executeMove(fromR, fromC, toR, toC) {
+            board[toR][toC] = board[fromR][fromC];
+            board[fromR][fromC] = '.';
+            renderBoard();
+        }
+
+        function triggerError() {
+            playSound('error');
+            boardWrapper.classList.add('shake');
+            setTimeout(() => boardWrapper.classList.remove('shake'), 400);
+
+            attempts++;
+            attemptsEl.textContent = attempts;
+            msgEl.textContent = "Incorreto! Reiniciando em 2 segundos...";
+            isWaitingReset = true;
+
+            setTimeout(() => {
+                resetBoardPosition();
+                isWaitingReset = false;
+            }, 2000);
+        }
+
+        function resetBoardPosition() {
+            board = JSON.parse(JSON.stringify(initialBoard));
+            selectedSq = null;
+            step = 1;
+            firstMoveCorrect = false;
+            isWaitingOpponent = false;
+            stepBadge.textContent = "Lance 1 de 2";
+            msgEl.textContent = "";
+            renderBoard();
+        }
+
+        function giveUp() {
+            if (!gameActive) return;
+            endGame(false, "Solução:\n1. Bc4 Nf6\n2. Qxf7#");
+        }
+
+        function endGame(win, desc) {
+            gameActive = false;
+            clearInterval(timerInterval);
+            const titleEl = document.getElementById('modal-title');
+            const descEl = document.getElementById('modal-desc');
+
+            if (win) {
+                titleEl.textContent = "Vitória!";
+                titleEl.style.color = "#4ade80";
+            } else {
+                titleEl.textContent = "Desafio Encerrado";
+                titleEl.style.color = "#ef4444";
+            }
+
+            descEl.innerHTML = desc.replace(/\n/g, '<br>');
+            overlayEl.classList.add('active');
+        }
+
+        function fullReset() {
+            attempts = 0;
+            attemptsEl.textContent = "0";
+            overlayEl.classList.remove('active');
+            gameActive = true;
+            isWaitingReset = false;
+            resetBoardPosition();
+            startTimer();
+        }
+
+        renderBoard();
+        startTimer();
+    </script>
+</body>
+</html>

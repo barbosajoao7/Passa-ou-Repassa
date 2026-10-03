@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio dos Palitos de Fósforo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #8b5a2b url('https://images.unsplash.com/photo-1546484475-7f7bd55792da?q=80&w=1200&auto=format&fit=crop') center/cover no-repeat;
+            font-family: 'Arial Black', -apple-system, sans-serif;
+            color: #ffee55;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .game-container {
+            width: min(98vw, 1100px);
+            background: rgba(30, 15, 5, 0.55);
+            backdrop-filter: blur(5px);
+            border: 4px solid rgba(255, 235, 59, 0.3);
+            border-radius: 20px;
+            padding: 25px 15px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .title {
+            text-transform: uppercase;
+            text-align: center;
+            font-size: clamp(1.1rem, 3vw, 2rem);
+            color: #ffee33;
+            text-shadow: 3px 3px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000, 0 5px 10px rgba(0,0,0,0.8);
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-right: 20px;
+            margin-bottom: 15px;
+        }
+
+        .timer-led {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 900;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            background: #111;
+            color: #ffee00;
+            padding: 6px 18px;
+            border-radius: 10px;
+            border: 3px solid #ffee00;
+            box-shadow: 0 0 15px rgba(255, 238, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.8);
+            text-shadow: 0 0 10px #ffee00;
+        }
+
+        .equation-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1.8vw, 22px);
+            margin: 20px 0 30px 0;
+            width: 100%;
+            position: relative;
+        }
+
+        .digit {
+            width: clamp(55px, 10vw, 85px);
+            height: clamp(100px, 18vw, 150px);
+            position: relative;
+        }
+
+        .operator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            height: clamp(100px, 18vw, 150px);
+            position: relative;
+            width: clamp(40px, 8vw, 70px);
+        }
+
+        /* Palito Interativo */
+        .matchstick {
+            position: absolute;
+            width: clamp(50px, 9vw, 75px);
+            height: 10px;
+            background: linear-gradient(to right, #f4e0b5, #d6b87d);
+            border-radius: 3px;
+            box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.6);
+            border: 1px solid #b89757;
+            cursor: grab;
+            transition: opacity 0.15s ease;
+            z-index: 10;
+        }
+
+        .matchstick:active {
+            cursor: grabbing;
+        }
+
+        .matchstick::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            background: radial-gradient(circle at 30% 30%, #b8322d, #42110e);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* Segmentos do Display de 7 Segmentos */
+        .seg-a { top: 0; left: calc(50% - clamp(25px, 4.5vw, 37.5px)); transform: rotate(0deg); }
+        .seg-b { top: 22%; right: -20px; transform: rotate(90deg); }
+        .seg-c { bottom: 22%; right: -20px; transform: rotate(90deg); }
+        .seg-d { bottom: 0; left: calc(50% - clamp(25px, 4.5vw, 37.5px)); transform: rotate(0deg); }
+        .seg-e { bottom: 22%; left: -20px; transform: rotate(90deg); }
+        .seg-f { top: 22%; left: -20px; transform: rotate(90deg); }
+        .seg-g { top: calc(50% - 5px); left: calc(50% - clamp(25px, 4.5vw, 37.5px)); transform: rotate(0deg); }
+
+        /* Operadores Fixos (Inalteráveis) */
+        .op-match {
+            position: absolute;
+            width: clamp(40px, 7vw, 65px);
+            height: 10px;
+            background: linear-gradient(to right, #f4e0b5, #d6b87d);
+            border-radius: 3px;
+            border: 1px solid #b89757;
+            box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+        }
+
+        .op-match::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            background: radial-gradient(circle at 30% 30%, #b8322d, #42110e);
+            border-radius: 50%;
+        }
+
+        /* Formatação dos símbolos fixos */
+        .op-mult .op-1 { transform: rotate(45deg); }
+        .op-mult .op-2 { transform: rotate(-45deg); }
+        
+        .op-eq .op-1 { top: calc(50% - 12px); transform: rotate(0deg); }
+        .op-eq .op-2 { top: calc(50% + 12px); transform: rotate(0deg); }
+
+        .op-plus .op-1 { transform: rotate(0deg); }
+        .op-plus .op-2 { transform: rotate(90deg); }
+
+        /* Destaque suave ao passar o palito por cima */
+        .drop-target-highlight {
+            position: absolute;
+            width: clamp(50px, 9vw, 75px);
+            height: 10px;
+            background: rgba(74, 222, 128, 0.45) !important;
+            border: 2px dashed #4ade80 !important;
+            box-shadow: 0 0 15px #4ade80 !important;
+            border-radius: 4px;
+            z-index: 5;
+            pointer-events: none;
+            transform-origin: center center;
+        }
+
+        #drag-avatar {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            transform-origin: center center;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.8));
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            background: #ffee00;
+            color: #3b1e08;
+            border: none;
+            padding: 12px 28px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #b3a700, 0 8px 15px rgba(0,0,0,0.5);
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: #fff04d;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #b3a700;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay h2 {
+            font-size: 2.8rem;
+            margin: 0 0 10px 0;
+        }
+
+        .overlay p {
+            font-size: 1.2rem;
+            color: #ddd;
+            margin-bottom: 25px;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .win-title { color: #4ade80; }
+        .lose-title { color: #f44336; }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="title">MOVA APENAS 1 PALITO PARA CORRIGIR A EQUAÇÃO</div>
+
+        <div class="top-bar">
+            <div class="timer-led" id="timer">00:30</div>
+        </div>
+
+        <div class="equation-area" id="equation-area">
+            <!-- Dígito 1 (9) -->
+            <div class="digit" id="d1"></div>
+
+            <!-- Multiplicação (x) -->
+            <div class="operator op-mult">
+                <div class="op-match op-1"></div>
+                <div class="op-match op-2"></div>
+            </div>
+
+            <!-- Dígito 2 (2) -->
+            <div class="digit" id="d2"></div>
+
+            <!-- Igual (=) -->
+            <div class="operator op-eq">
+                <div class="op-match op-1"></div>
+                <div class="op-match op-2"></div>
+            </div>
+
+            <!-- Dígito 3 (7) -->
+            <div class="digit" id="d3"></div>
+
+            <!-- Adição (+) -->
+            <div class="operator op-plus">
+                <div class="op-match op-1"></div>
+                <div class="op-match op-2"></div>
+            </div>
+
+            <!-- Dígito 4 (8) -->
+            <div class="digit" id="d4"></div>
+        </div>
+
+        <div class="controls">
+            <button class="btn" onclick="resetGame()">Reiniciar</button>
+        </div>
+
+        <div class="overlay" id="overlay">
+            <h2 id="modal-title"></h2>
+            <p id="modal-desc"></p>
+            <button class="btn" onclick="resetGame()">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <div id="drag-avatar" class="matchstick"></div>
+    <div id="drop-highlight" class="drop-target-highlight" style="display: none;"></div>
+
+    <script>
+        const digitSegments = {
+            '0': ['a', 'b', 'c', 'd', 'e', 'f'],
+            '2': ['a', 'b', 'd', 'e', 'g'],
+            '3': ['a', 'b', 'c', 'd', 'g'],
+            '5': ['a', 'c', 'd', 'f', 'g'],
+            '6': ['a', 'c', 'd', 'e', 'f', 'g'],
+            '7': ['a', 'b', 'c'],
+            '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+            '9': ['a', 'b', 'c', 'd', 'f', 'g']
+        };
+
+        // Estado inicial: 9 x 2 = 7 + 8
+        let currentState = {
+            d1: ['a', 'b', 'c', 'd', 'f', 'g'], // 9
+            d2: ['a', 'b', 'd', 'e', 'g'],      // 2
+            d3: ['a', 'b', 'c'],                // 7
+            d4: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] // 8
+        };
+
+        let dragging = null;
+        let currentTarget = null;
+        let timerSeconds = 30;
+        let timerInterval = null;
+        let gameActive = true;
+
+        const dragAvatar = document.getElementById('drag-avatar');
+        const dropHighlight = document.getElementById('drop-highlight');
+        const timerEl = document.getElementById('timer');
+        const overlayEl = document.getElementById('overlay');
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'drag') {
+                osc.frequency.setValueAtTime(350, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } else if (type === 'snap') {
+                osc.frequency.setValueAtTime(650, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.12);
+            } else if (type === 'win') {
+                [523, 659, 783, 1046].forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.1);
+                    g.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.1);
+                    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.1 + 0.2);
+                    o.start(audioCtx.currentTime + idx * 0.1);
+                    o.stop(audioCtx.currentTime + idx * 0.1 + 0.2);
+                });
+            } else if (type === 'lose') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(90, audioCtx.currentTime + 0.35);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+            }
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerSeconds = 30;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                if (!gameActive) return;
+                timerSeconds--;
+                updateTimerDisplay();
+
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    endGame(false, "O tempo esgotou! Tente novamente.");
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const s = timerSeconds.toString().padStart(2, '0');
+            timerEl.textContent = `00:${s}`;
+        }
+
+        function renderBoard() {
+            ['d1', 'd2', 'd3', 'd4'].forEach(digitId => {
+                const container = document.getElementById(digitId);
+                container.innerHTML = '';
+
+                currentState[digitId].forEach(seg => {
+                    const isVert = ['b', 'c', 'e', 'f'].includes(seg);
+                    const match = document.createElement('div');
+                    match.className = `matchstick seg-${seg}`;
+
+                    match.addEventListener('pointerdown', (e) => {
+                        startDragging(e, digitId, seg, isVert);
+                    });
+
+                    container.appendChild(match);
+                });
+            });
+        }
+
+        function startDragging(e, digitId, seg, isVert) {
+            if (!gameActive) return;
+            e.preventDefault();
+
+            dragging = { digitId, seg, isVert };
+            playSound('drag');
+
+            currentState[digitId] = currentState[digitId].filter(s => s !== seg);
+            renderBoard();
+
+            dragAvatar.style.display = 'block';
+            dragAvatar.style.transform = `translate(-50%, -50%) rotate(${isVert ? '90deg' : '0deg'})`;
+
+            updateAvatarPos(e.clientX, e.clientY);
+        }
+
+        function updateAvatarPos(x, y) {
+            dragAvatar.style.left = x + 'px';
+            dragAvatar.style.top = y + 'px';
+        }
+
+        window.addEventListener('pointermove', (e) => {
+            if (!dragging) return;
+            updateAvatarPos(e.clientX, e.clientY);
+            checkHoverTargets(e.clientX, e.clientY);
+        });
+
+        function checkHoverTargets(x, y) {
+            currentTarget = null;
+            let minDistance = 50;
+            const allSegs = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+
+            ['d1', 'd2', 'd3', 'd4'].forEach(digitId => {
+                const container = document.getElementById(digitId);
+                const rect = container.getBoundingClientRect();
+
+                allSegs.forEach(seg => {
+                    if (currentState[digitId].includes(seg)) return;
+
+                    const pos = getSegmentCoordinates(rect, seg);
+                    const dist = Math.hypot(x - pos.x, y - pos.y);
+
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        currentTarget = { digitId, seg, pos };
+                    }
+                });
+            });
+
+            if (currentTarget) {
+                const isTargetVert = ['b', 'c', 'e', 'f'].includes(currentTarget.seg);
+                dragAvatar.style.transform = `translate(-50%, -50%) rotate(${isTargetVert ? '90deg' : '0deg'})`;
+
+                const matchWidth = Math.min(window.innerWidth * 0.09, 75);
+                dropHighlight.style.display = 'block';
+                dropHighlight.style.left = (currentTarget.pos.x - matchWidth/2) + 'px';
+                dropHighlight.style.top = (currentTarget.pos.y - 5) + 'px';
+                dropHighlight.style.transform = isTargetVert ? 'rotate(90deg)' : 'rotate(0deg)';
+            } else {
+                dragAvatar.style.transform = `translate(-50%, -50%) rotate(${dragging.isVert ? '90deg' : '0deg'})`;
+                dropHighlight.style.display = 'none';
+            }
+        }
+
+        function getSegmentCoordinates(rect, seg) {
+            const w = rect.width;
+            const h = rect.height;
+
+            let x = rect.left + w / 2;
+            let y = rect.top + h / 2;
+
+            if (seg === 'a') y = rect.top + 5;
+            if (seg === 'b') { x = rect.right - 5; y = rect.top + h * 0.22; }
+            if (seg === 'c') { x = rect.right - 5; y = rect.top + h * 0.78; }
+            if (seg === 'd') y = rect.bottom - 5;
+            if (seg === 'e') { x = rect.left + 5; y = rect.top + h * 0.78; }
+            if (seg === 'f') { x = rect.left + 5; y = rect.top + h * 0.22; }
+            if (seg === 'g') y = rect.top + h / 2;
+
+            return { x, y };
+        }
+
+        window.addEventListener('pointerup', () => {
+            if (!dragging) return;
+
+            dragAvatar.style.display = 'none';
+            dropHighlight.style.display = 'none';
+
+            if (currentTarget) {
+                currentState[currentTarget.digitId].push(currentTarget.seg);
+                playSound('snap');
+            } else {
+                currentState[dragging.digitId].push(dragging.seg);
+            }
+
+            dragging = null;
+            currentTarget = null;
+
+            renderBoard();
+            checkWinCondition();
+        });
+
+        function checkWinCondition() {
+            const isD1_8 = isArrayEqual(currentState.d1, digitSegments['8']);
+            const isD2_2 = isArrayEqual(currentState.d2, digitSegments['2']);
+            const isD3_7 = isArrayEqual(currentState.d3, digitSegments['7']);
+            const isD4_9 = isArrayEqual(currentState.d4, digitSegments['9']);
+
+            // Solução exata solicitada: 8 x 2 = 7 + 9
+            if (isD1_8 && isD2_2 && isD3_7 && isD4_9) {
+                playSound('win');
+                endGame(true, "Excelente! Equação corrigida: 8 × 2 = 7 + 9!");
+            }
+        }
+
+        function isArrayEqual(arr1, arr2) {
+            if (arr1.length !== arr2.length) return false;
+            const sorted1 = [...arr1].sort();
+            const sorted2 = [...arr2].sort();
+            return sorted1.every((val, idx) => val === sorted2[idx]);
+        }
+
+        function endGame(win, desc) {
+            gameActive = false;
+            clearInterval(timerInterval);
+
+            const titleEl = document.getElementById('modal-title');
+            const descEl = document.getElementById('modal-desc');
+
+            if (win) {
+                titleEl.textContent = "PARABÉNS!";
+                titleEl.className = "win-title";
+            } else {
+                titleEl.textContent = "TEMPO ESGOTADO!";
+                titleEl.className = "lose-title";
+                playSound('lose');
+            }
+
+            descEl.textContent = desc;
+            overlayEl.classList.add('active');
+        }
+
+        function resetGame() {
+            currentState = {
+                d1: ['a', 'b', 'c', 'd', 'f', 'g'], // 9
+                d2: ['a', 'b', 'd', 'e', 'g'],      // 2
+                d3: ['a', 'b', 'c'],                // 7
+                d4: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] // 8
+            };
+
+            dragging = null;
+            currentTarget = null;
+            gameActive = true;
+
+            overlayEl.classList.remove('active');
+            renderBoard();
+            startTimer();
+        }
+
+        renderBoard();
+        startTimer();
+    </script>
+</body>
+</html>

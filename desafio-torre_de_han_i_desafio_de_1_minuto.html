@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torre de Hanói - Desafio de 1 Minuto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&display=swap');
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            background-color: #ffffff;
+        }
+
+        /* Minimalist Black Poles and Bases */
+        .tower-pole {
+            background-color: #000000;
+            width: 8px;
+        }
+
+        .tower-base {
+            background-color: #000000;
+            height: 8px;
+            width: 100%;
+        }
+
+        /* Disk Styles matching the exact reference image */
+        .disk {
+            height: 38px;
+            border: 3px solid #000000;
+            box-sizing: border-box;
+            border-radius: 2px;
+            cursor: grab;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            touch-action: none;
+        }
+
+        .disk:active, .disk.dragging {
+            cursor: grabbing;
+            opacity: 0.85;
+            transform: scale(1.03);
+            z-index: 50;
+        }
+
+        /* Disk Colors from Image */
+        .disk-3 {
+            background-color: #3b0066; /* Deep Purple (Bottom) */
+            width: 170px;
+        }
+
+        .disk-2 {
+            background-color: #e258d8; /* Bright Violet / Pink (Middle) */
+            width: 125px;
+        }
+
+        .disk-1 {
+            background-color: #ffc0cb; /* Light Pink (Top) */
+            width: 85px;
+        }
+
+        @media (max-width: 640px) {
+            .disk-3 { width: 110px; height: 30px; }
+            .disk-2 { width: 80px; height: 30px; }
+            .disk-1 { width: 55px; height: 30px; }
+        }
+
+        /* Target Drop Indicator */
+        .tower-container.drag-over .tower-pole {
+            background-color: #22c55e;
+            box-shadow: 0 0 12px #22c55e;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen bg-white flex flex-col justify-between items-center p-4 overflow-hidden relative">
+
+    <!-- Top Header / Controls -->
+    <header class="w-full max-w-4xl flex justify-between items-center pt-2 px-2 z-10">
+        <div class="flex items-center gap-6">
+            <!-- Countdown Timer -->
+            <div class="flex flex-col">
+                <span class="text-xs uppercase font-extrabold text-gray-500 tracking-wider">Tempo</span>
+                <span id="timerDisplay" class="text-2xl sm:text-3xl font-extrabold text-black">01:00.000</span>
+            </div>
+            <!-- Move Counter -->
+            <div class="flex flex-col">
+                <span class="text-xs uppercase font-extrabold text-gray-500 tracking-wider">Movimentos</span>
+                <span id="movesDisplay" class="text-2xl sm:text-3xl font-extrabold text-black">0</span>
+            </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex items-center gap-3">
+            <button id="soundBtn" onclick="toggleSound()" class="w-10 h-10 rounded-full border-2 border-black flex items-center justify-center text-black hover:bg-black hover:text-white transition active:scale-95" title="Som">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-base"></i>
+            </button>
+            <button onclick="resetGame()" class="w-10 h-10 rounded-full border-2 border-black flex items-center justify-center text-black hover:bg-black hover:text-white transition active:scale-95" title="Reiniciar">
+                <i class="fa-solid fa-rotate-right text-base"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Towers Main Stage -->
+    <main class="w-full max-w-4xl flex-1 flex items-end justify-center pb-12 px-2 gap-2 sm:gap-6 relative">
+        
+        <!-- TORRE 1 -->
+        <div id="tower-0" data-tower="0" class="tower-container flex-1 h-80 flex flex-col items-center justify-end relative cursor-pointer">
+            <!-- Vertical Pole -->
+            <div class="tower-pole h-64 absolute bottom-2 rounded-t"></div>
+            <!-- Stack of Disks -->
+            <div id="stack-0" class="w-full flex flex-col-reverse items-center z-10 mb-2"></div>
+            <!-- Base Line -->
+            <div class="tower-base"></div>
+            <!-- Label -->
+            <span class="font-extrabold text-black text-sm sm:text-lg mt-2 tracking-wider">TORRE 1</span>
+        </div>
+
+        <!-- TORRE 2 -->
+        <div id="tower-1" data-tower="1" class="tower-container flex-1 h-80 flex flex-col items-center justify-end relative cursor-pointer">
+            <!-- Vertical Pole -->
+            <div class="tower-pole h-64 absolute bottom-2 rounded-t"></div>
+            <!-- Stack of Disks -->
+            <div id="stack-1" class="w-full flex flex-col-reverse items-center z-10 mb-2"></div>
+            <!-- Base Line -->
+            <div class="tower-base"></div>
+            <!-- Label -->
+            <span class="font-extrabold text-black text-sm sm:text-lg mt-2 tracking-wider">TORRE 2</span>
+        </div>
+
+        <!-- TORRE 3 -->
+        <div id="tower-2" data-tower="2" class="tower-container flex-1 h-80 flex flex-col items-center justify-end relative cursor-pointer">
+            <!-- Vertical Pole -->
+            <div class="tower-pole h-64 absolute bottom-2 rounded-t"></div>
+            <!-- Stack of Disks -->
+            <div id="stack-2" class="w-full flex flex-col-reverse items-center z-10 mb-2"></div>
+            <!-- Base Line -->
+            <div class="tower-base"></div>
+            <!-- Label -->
+            <span class="font-extrabold text-black text-sm sm:text-lg mt-2 tracking-wider">TORRE 3</span>
+        </div>
+
+    </main>
+
+    <!-- Ghost Drag Image Element -->
+    <div id="dragGhost" class="fixed top-0 left-0 pointer-events-none z-50 hidden"></div>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white border-4 border-black p-8 max-w-sm w-full text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <h2 class="text-3xl font-extrabold text-black mb-2 uppercase">Vitória!</h2>
+            <p class="text-gray-600 font-bold mb-6">Você concluiu o desafio com sucesso!</p>
+            
+            <div class="bg-gray-100 p-4 border-2 border-black mb-6 text-left space-y-2 font-bold text-sm">
+                <p class="flex justify-between"><span>Tempo Restante:</span> <span id="finalTime" class="text-black">00:00</span></p>
+                <p class="flex justify-between"><span>Movimentos:</span> <span id="finalMoves" class="text-black">0</span></p>
+            </div>
+
+            <button onclick="resetGame(); closeModal('victoryModal');" class="w-full py-3 bg-black text-white font-extrabold uppercase hover:bg-gray-800 transition active:scale-95 border-2 border-black">
+                Jogar Novamente
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white border-4 border-black p-8 max-w-sm w-full text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+            <h2 class="text-3xl font-extrabold text-red-600 mb-2 uppercase">Tempo Esgotado!</h2>
+            <p class="text-gray-600 font-bold mb-6">O tempo de 1 minuto acabou. Tente novamente!</p>
+
+            <button onclick="resetGame(); closeModal('gameOverModal');" class="w-full py-3 bg-black text-white font-extrabold uppercase hover:bg-gray-800 transition active:scale-95 border-2 border-black">
+                Tentar Novamente
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Game Constants & Variables
+        const NUM_DISKS = 3;
+        const TOTAL_TIME_MS = 60 * 1000;
+
+        let towers = [[3, 2, 1], [], []]; // Tower 0 starts with disks 3, 2, 1
+        let moves = 0;
+        let selectedTower = null;
+
+        let remainingTime = TOTAL_TIME_MS;
+        let timerInterval = null;
+        let lastTimestamp = null;
+        let isGameActive = false;
+        let soundEnabled = true;
+
+        // Drag and drop tracking
+        let draggedDisk = null;
+        let sourceTower = null;
+        let activeTouchDisk = null;
+        let touchOffset = { x: 0, y: 0 };
+
+        // Audio Context Synthesizer
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+
+            if (type === 'lift') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(480, now + 0.1);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'drop') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.12);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'error') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            } else if (type === 'win') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.1);
+                    osc.stop(now + idx * 0.1 + 0.35);
+                });
+            } else if (type === 'gameover') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(90, now + 0.5);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundIcon').className = soundEnabled 
+                ? 'fa-solid fa-volume-high text-base' 
+                : 'fa-solid fa-volume-xmark text-base text-red-500';
+        }
+
+        // Timer Functions
+        function startTimer() {
+            if (!isGameActive && remainingTime > 0) {
+                isGameActive = true;
+                lastTimestamp = performance.now();
+                timerInterval = requestAnimationFrame(updateCountdown);
+            }
+        }
+
+        function updateCountdown(timestamp) {
+            if (!isGameActive) return;
+
+            const delta = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            remainingTime -= delta;
+
+            if (remainingTime <= 0) {
+                remainingTime = 0;
+                renderTimer();
+                stopTimer();
+                playSound('gameover');
+                openModal('gameOverModal');
+                return;
+            }
+
+            renderTimer();
+            timerInterval = requestAnimationFrame(updateCountdown);
+        }
+
+        function renderTimer() {
+            const ms = Math.floor(remainingTime % 1000);
+            const sec = Math.floor((remainingTime / 1000) % 60);
+            const min = Math.floor(remainingTime / (1000 * 60));
+            document.getElementById('timerDisplay').innerText = 
+                `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+        }
+
+        function stopTimer() {
+            isGameActive = false;
+            if (timerInterval) cancelAnimationFrame(timerInterval);
+        }
+
+        function attemptMove(fromTower, toTower) {
+            if (remainingTime <= 0) return false;
+            startTimer();
+
+            if (fromTower === toTower) return false;
+
+            const sourceStack = towers[fromTower];
+            const targetStack = towers[toTower];
+
+            if (sourceStack.length === 0) {
+                playSound('error');
+                return false;
+            }
+
+            const diskToMove = sourceStack[sourceStack.length - 1];
+            const topTargetDisk = targetStack[targetStack.length - 1];
+
+            // Rule check: Larger disk cannot go on top of smaller disk
+            if (topTargetDisk && diskToMove > topTargetDisk) {
+                playSound('error');
+                return false;
+            }
+
+            // Execute valid move
+            targetStack.push(sourceStack.pop());
+            moves++;
+            playSound('drop');
+
+            renderBoard();
+            checkWinCondition();
+            return true;
+        }
+
+        function checkWinCondition() {
+            if (towers[1].length === NUM_DISKS || towers[2].length === NUM_DISKS) {
+                stopTimer();
+                playSound('win');
+                document.getElementById('finalTime').innerText = document.getElementById('timerDisplay').innerText;
+                document.getElementById('finalMoves').innerText = moves;
+                setTimeout(() => openModal('victoryModal'), 200);
+            }
+        }
+
+        function renderBoard() {
+            document.getElementById('movesDisplay').innerText = moves;
+
+            for (let t = 0; t < 3; t++) {
+                const stackEl = document.getElementById(`stack-${t}`);
+                stackEl.innerHTML = '';
+
+                towers[t].forEach((diskSize, index) => {
+                    const isTopDisk = (index === towers[t].length - 1);
+                    const disk = document.createElement('div');
+                    disk.className = `disk disk-${diskSize} my-0.5`;
+                    disk.dataset.size = diskSize;
+                    disk.dataset.tower = t;
+
+                    if (isTopDisk) {
+                        disk.setAttribute('draggable', 'true');
+                        
+                        // Drag events
+                        disk.addEventListener('dragstart', handleDragStart);
+                        disk.addEventListener('dragend', handleDragEnd);
+
+                        // Touch events for mobile dragging
+                        disk.addEventListener('touchstart', handleTouchStart, { passive: false });
+                        disk.addEventListener('touchmove', handleTouchMove, { passive: false });
+                        disk.addEventListener('touchend', handleTouchEnd);
+                    } else {
+                        disk.setAttribute('draggable', 'false');
+                        disk.style.cursor = 'default';
+                    }
+
+                    stackEl.appendChild(disk);
+                });
+            }
+        }
+
+        // HTML5 Drag and Drop Handlers
+        function handleDragStart(e) {
+            startTimer();
+            draggedDisk = parseInt(e.target.dataset.size);
+            sourceTower = parseInt(e.target.dataset.tower);
+            e.target.classList.add('dragging');
+            playSound('lift');
+            e.dataTransfer.setData('text/plain', sourceTower);
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.tower-container').forEach(tc => tc.classList.remove('drag-over'));
+            draggedDisk = null;
+            sourceTower = null;
+        }
+
+        function setupTowerDropZones() {
+            for (let t = 0; t < 3; t++) {
+                const towerEl = document.getElementById(`tower-${t}`);
+
+                towerEl.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    towerEl.classList.add('drag-over');
+                });
+
+                towerEl.addEventListener('dragleave', () => {
+                    towerEl.classList.remove('drag-over');
+                });
+
+                towerEl.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    towerEl.classList.remove('drag-over');
+                    if (sourceTower !== null) {
+                        attemptMove(sourceTower, t);
+                    }
+                });
+
+                // Fallback click selection
+                towerEl.addEventListener('click', () => {
+                    if (selectedTower === null) {
+                        if (towers[t].length > 0) {
+                            selectedTower = t;
+                            playSound('lift');
+                            document.getElementById(`tower-${t}`).classList.add('drag-over');
+                        }
+                    } else {
+                        document.querySelectorAll('.tower-container').forEach(tc => tc.classList.remove('drag-over'));
+                        const from = selectedTower;
+                        selectedTower = null;
+                        attemptMove(from, t);
+                    }
+                });
+            }
+        }
+
+        // Mobile Touch Dragging Implementation
+        function handleTouchStart(e) {
+            e.preventDefault();
+            startTimer();
+            const touch = e.touches[0];
+            activeTouchDisk = e.target;
+            sourceTower = parseInt(activeTouchDisk.dataset.tower);
+
+            playSound('lift');
+            activeTouchDisk.classList.add('dragging');
+
+            const rect = activeTouchDisk.getBoundingClientRect();
+            touchOffset.x = touch.clientX - rect.left;
+            touchOffset.y = touch.clientY - rect.top;
+        }
+
+        function handleTouchMove(e) {
+            if (!activeTouchDisk) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+
+            activeTouchDisk.style.position = 'fixed';
+            activeTouchDisk.style.left = `${touch.clientX - touchOffset.x}px`;
+            activeTouchDisk.style.top = `${touch.clientY - touchOffset.y}px`;
+            activeTouchDisk.style.zIndex = '1000';
+
+            // Check if touch is over a tower container
+            const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+            const towerContainer = elementUnder ? elementUnder.closest('.tower-container') : null;
+
+            document.querySelectorAll('.tower-container').forEach(tc => tc.classList.remove('drag-over'));
+            if (towerContainer) {
+                towerContainer.classList.add('drag-over');
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (!activeTouchDisk) return;
+
+            const touch = e.changedTouches[0];
+            const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+            const towerContainer = elementUnder ? elementUnder.closest('.tower-container') : null;
+
+            activeTouchDisk.style.position = '';
+            activeTouchDisk.style.left = '';
+            activeTouchDisk.style.top = '';
+            activeTouchDisk.style.zIndex = '';
+            activeTouchDisk.classList.remove('dragging');
+
+            document.querySelectorAll('.tower-container').forEach(tc => tc.classList.remove('drag-over'));
+
+            if (towerContainer && sourceTower !== null) {
+                const targetTower = parseInt(towerContainer.dataset.tower);
+                attemptMove(sourceTower, targetTower);
+            } else {
+                renderBoard();
+            }
+
+            activeTouchDisk = null;
+            sourceTower = null;
+        }
+
+        // Game Initialization
+        function resetGame() {
+            stopTimer();
+            towers = [[3, 2, 1], [], []];
+            moves = 0;
+            selectedTower = null;
+            remainingTime = TOTAL_TIME_MS;
+            isGameActive = false;
+            renderTimer();
+            renderBoard();
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        window.onload = () => {
+            setupTowerDropZones();
+            resetGame();
+        };
+    </script>
+</body>
+</html>

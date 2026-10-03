@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio dos Palitos - Forme 3 Quadrados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap');
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #f1f5f9;
+        }
+
+        /* Matchstick Styling */
+        .matchstick {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            box-shadow: 2px 3px 6px rgba(0,0,0,0.3);
+            cursor: grab;
+            transition: transform 0.1s ease, filter 0.15s ease, background-color 0.2s;
+            z-index: 30;
+            background: linear-gradient(180deg, #fce09b 0%, #e5bd68 50%, #c29938 100%);
+            border: 1px solid #b58d2c;
+            touch-action: none;
+        }
+
+        .matchstick:hover {
+            filter: brightness(1.1);
+            transform: scale(1.04);
+        }
+
+        .matchstick.selected {
+            outline: 3px solid #ef4444;
+            outline-offset: 2px;
+            transform: scale(1.06);
+            z-index: 40;
+        }
+
+        .matchstick.dragging {
+            cursor: grabbing;
+            opacity: 0.95;
+            z-index: 100 !important;
+            transform: scale(1.12);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.35);
+        }
+
+        .matchstick.moved {
+            background: linear-gradient(180deg, #fca5a5 0%, #f87171 50%, #dc2626 100%);
+            border-color: #991b1b;
+        }
+
+        /* Red Matchstick Head */
+        .matchhead {
+            position: absolute;
+            border-radius: 50%;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            background: radial-gradient(circle at 30% 30%, #dc2626, #7f1d1d);
+        }
+
+        /* Horizontal Matchstick */
+        .match-h {
+            width: 76px;
+            height: 10px;
+        }
+        .match-h .matchhead {
+            width: 14px;
+            height: 14px;
+            right: -3px;
+            top: -2px;
+        }
+
+        /* Vertical Matchstick */
+        .match-v {
+            width: 10px;
+            height: 76px;
+        }
+        .match-v .matchhead {
+            width: 14px;
+            height: 14px;
+            bottom: -3px;
+            left: -2px;
+        }
+
+        /* Invisible Drop Target Slots */
+        .grid-slot {
+            position: absolute;
+            border-radius: 4px;
+            z-index: 10;
+            cursor: pointer;
+        }
+
+        .grid-slot.highlight {
+            background-color: rgba(239, 68, 68, 0.25);
+            border: 2px dashed #ef4444;
+        }
+
+        .slot-h {
+            width: 76px;
+            height: 14px;
+            transform: translateY(-2px);
+        }
+
+        .slot-v {
+            width: 14px;
+            height: 76px;
+            transform: translateX(-2px);
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen flex flex-col justify-between items-center p-3 sm:p-5 select-none overflow-hidden">
+
+    <!-- Header info & controls -->
+    <header class="w-full max-w-md flex justify-between items-center pt-2 px-2 z-10">
+        <div class="flex items-center gap-6">
+            <div class="flex flex-col">
+                <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Tempo</span>
+                <span id="timerDisplay" class="text-2xl sm:text-3xl font-black text-slate-800">01:00.000</span>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Movimentos</span>
+                <span id="movesDisplay" class="text-2xl sm:text-3xl font-black text-slate-800">0 / 3</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button id="soundBtn" onclick="toggleSound()" class="w-10 h-10 rounded-xl border-2 border-slate-900 flex items-center justify-center text-slate-900 hover:bg-slate-900 hover:text-white transition active:scale-95" title="Som">
+                <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+            </button>
+            <button onclick="resetGame()" class="w-10 h-10 rounded-xl border-2 border-slate-900 flex items-center justify-center text-slate-900 hover:bg-slate-900 hover:text-white transition active:scale-95" title="Reiniciar">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Board -->
+    <main class="w-full max-w-md flex-1 flex flex-col items-center justify-center relative my-2">
+        <div class="relative bg-white border-[5px] border-slate-900 rounded-2xl shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] p-4 sm:p-6 w-full max-w-[380px] sm:max-w-[400px] aspect-square flex flex-col items-center justify-between">
+
+            <!-- Title -->
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 text-center leading-tight tracking-tight mt-1">
+                Mova 3 palitos e<br>forme 3 quadrados
+            </h1>
+
+            <p class="text-xs font-bold text-slate-500 text-center mt-1">
+                ✨ Arraste o palito: ele gira sozinho ao aproximar de um slot!
+            </p>
+
+            <!-- Grid Stage -->
+            <div id="boardStage" class="relative w-[300px] h-[300px] my-auto flex items-center justify-center">
+                <div id="gridContainer" class="relative w-[240px] h-[240px]"></div>
+            </div>
+
+            <!-- Card Tag Number #2 -->
+            <div class="absolute bottom-3 right-3 bg-red-600 text-white font-black text-lg sm:text-xl px-3 py-1 rounded-lg border-2 border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1">
+                #2
+            </div>
+        </div>
+
+        <!-- Verify Button -->
+        <div class="flex items-center justify-center mt-4">
+            <button onclick="checkSolution(true)" class="px-10 py-3 rounded-full border-2 border-slate-900 font-black text-base uppercase bg-red-600 hover:bg-red-700 text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition active:scale-95">
+                VERIFICAR
+            </button>
+        </div>
+    </main>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white border-4 border-slate-900 p-6 sm:p-8 max-w-sm w-full text-center rounded-2xl shadow-[8px_8px_0px_0px_rgba(15,23,42,1)]">
+            <div class="w-16 h-16 bg-emerald-100 border-2 border-slate-900 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600 text-2xl">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="text-3xl font-black text-slate-900 uppercase mb-2">Excelente!</h2>
+            <p class="text-slate-600 font-bold text-sm mb-6">Moveste os 3 palitos e formaste exatamente 3 quadrados perfeitos!</p>
+
+            <button onclick="resetGame(); closeModal('victoryModal');" class="w-full py-3 bg-slate-900 text-white font-extrabold uppercase rounded-xl hover:bg-slate-800 transition active:scale-95 border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(239,68,68,1)]">
+                Jogar Novamente
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white border-4 border-slate-900 p-6 sm:p-8 max-w-sm w-full text-center rounded-2xl shadow-[8px_8px_0px_0px_rgba(15,23,42,1)]">
+            <h2 id="gameOverTitle" class="text-3xl font-black text-red-600 uppercase mb-2">Tempo Esgotado!</h2>
+            <p id="gameOverText" class="text-slate-600 font-bold text-sm mb-6">O tempo de 1 minuto terminou. Tenta novamente!</p>
+
+            <button onclick="resetGame(); closeModal('gameOverModal');" class="w-full py-3 bg-slate-900 text-white font-extrabold uppercase rounded-xl hover:bg-slate-800 transition active:scale-95 border-2 border-slate-900">
+                Tentar Novamente
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const ALL_SLOTS = {
+            'H_0_1': { type: 'h', x: 80,  y: 0 },
+            'H_1_0': { type: 'h', x: 0,    y: 80 },
+            'H_1_1': { type: 'h', x: 80,  y: 80 },
+            'H_1_2': { type: 'h', x: 160, y: 80 },
+            'H_2_0': { type: 'h', x: 0,    y: 160 },
+            'H_2_1': { type: 'h', x: 80,  y: 160 },
+            'H_2_2': { type: 'h', x: 160, y: 160 },
+            'H_3_1': { type: 'h', x: 80,  y: 240 },
+
+            'V_0_1': { type: 'v', x: 80,  y: 0 },
+            'V_0_2': { type: 'v', x: 160, y: 0 },
+            'V_1_0': { type: 'v', x: 0,    y: 80 },
+            'V_1_1': { type: 'v', x: 80,  y: 80 },
+            'V_1_2': { type: 'v', x: 160, y: 80 },
+            'V_1_3': { type: 'v', x: 240, y: 80 },
+            'V_2_1': { type: 'v', x: 80,  y: 160 },
+            'V_2_2': { type: 'v', x: 160, y: 160 }
+        };
+
+        const INITIAL_PLACEMENTS = [
+            'H_1_1', 'H_2_1', 'V_1_1', 'V_1_2',
+            'V_0_1', 'V_0_2',
+            'V_2_1', 'V_2_2',
+            'H_1_0', 'H_2_0',
+            'H_1_2', 'H_2_2'
+        ];
+
+        let currentPlacement = {};
+        let initialSet = new Set(INITIAL_PLACEMENTS);
+        let moveCount = 0;
+        const MAX_MOVES = 3;
+
+        const TOTAL_TIME = 60 * 1000;
+        let remainingTime = TOTAL_TIME;
+        let timerInterval = null;
+        let lastTimestamp = null;
+        let isGameActive = false;
+        let soundEnabled = true;
+
+        let selectedMatchKey = null;
+        let draggedMatchKey = null;
+        let dragOffset = { x: 0, y: 0 };
+        let activeHoverSlot = null;
+
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+
+            if (type === 'dragstart' || type === 'select' || type === 'rotate') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type === 'rotate' ? 'square' : 'sine';
+                osc.frequency.setValueAtTime(type === 'rotate' ? 480 : 350, now);
+                osc.frequency.exponentialRampToValueAtTime(type === 'rotate' ? 650 : 550, now + 0.06);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.06);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.06);
+            } else if (type === 'drop') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(420, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'error') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'win') {
+                if (window.confetti) {
+                    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+                }
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, now + i * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.1);
+                    osc.stop(now + i * 0.1 + 0.3);
+                });
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundIcon').className = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-red-500';
+        }
+
+        function startTimer() {
+            if (!isGameActive && remainingTime > 0) {
+                isGameActive = true;
+                lastTimestamp = performance.now();
+                timerInterval = requestAnimationFrame(updateTimer);
+            }
+        }
+
+        function updateTimer(timestamp) {
+            if (!isGameActive) return;
+            const delta = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+            remainingTime -= delta;
+
+            if (remainingTime <= 0) {
+                remainingTime = 0;
+                renderTimer();
+                stopTimer();
+                playSound('error');
+                document.getElementById('gameOverTitle').innerText = "Tempo Esgotado!";
+                document.getElementById('gameOverText').innerText = "O tempo de 1 minuto terminou. Tenta novamente!";
+                openModal('gameOverModal');
+                return;
+            }
+
+            renderTimer();
+            timerInterval = requestAnimationFrame(updateTimer);
+        }
+
+        function renderTimer() {
+            const ms = Math.floor(remainingTime % 1000);
+            const sec = Math.floor((remainingTime / 1000) % 60);
+            const min = Math.floor(remainingTime / (1000 * 60));
+            document.getElementById('timerDisplay').innerText = 
+                `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+        }
+
+        function stopTimer() {
+            isGameActive = false;
+            if (timerInterval) cancelAnimationFrame(timerInterval);
+        }
+
+        function buildBoard() {
+            const container = document.getElementById('gridContainer');
+            container.innerHTML = '';
+
+            const occupiedSlots = new Set(Object.values(currentPlacement));
+
+            Object.keys(ALL_SLOTS).forEach(slotKey => {
+                const slot = ALL_SLOTS[slotKey];
+                const isOccupied = occupiedSlots.has(slotKey);
+
+                const slotEl = document.createElement('div');
+                slotEl.dataset.slotKey = slotKey;
+                slotEl.className = `grid-slot slot-${slot.type} ${activeHoverSlot === slotKey ? 'highlight' : ''}`;
+                slotEl.style.left = `${slot.x}px`;
+                slotEl.style.top = `${slot.y}px`;
+
+                slotEl.onclick = () => {
+                    if (selectedMatchKey && !isOccupied) {
+                        moveMatchstickTo(selectedMatchKey, slotKey);
+                    }
+                };
+
+                container.appendChild(slotEl);
+            });
+
+            Object.keys(currentPlacement).forEach(matchKey => {
+                const slotKey = currentPlacement[matchKey];
+                const slot = ALL_SLOTS[slotKey];
+
+                const isMoved = !initialSet.has(slotKey);
+                const isSelected = selectedMatchKey === matchKey;
+
+                const matchEl = document.createElement('div');
+                matchEl.dataset.matchKey = matchKey;
+                matchEl.className = `matchstick match-${slot.type} ${isMoved ? 'moved' : ''} ${isSelected ? 'selected' : ''}`;
+                matchEl.style.left = `${slot.x}px`;
+                matchEl.style.top = `${slot.y}px`;
+
+                const head = document.createElement('div');
+                head.className = 'matchhead';
+                matchEl.appendChild(head);
+
+                matchEl.onpointerdown = (e) => onPointerDown(e, matchKey, matchEl);
+
+                container.appendChild(matchEl);
+            });
+
+            calculateMoveCount();
+            document.getElementById('movesDisplay').innerText = `${moveCount} / ${MAX_MOVES}`;
+        }
+
+        function calculateMoveCount() {
+            let moved = 0;
+            Object.values(currentPlacement).forEach(slotKey => {
+                if (!initialSet.has(slotKey)) moved++;
+            });
+            moveCount = moved;
+        }
+
+        function moveMatchstickTo(matchKey, targetSlot) {
+            const prevSlot = currentPlacement[matchKey];
+            if (prevSlot === targetSlot) return;
+
+            currentPlacement[matchKey] = targetSlot;
+            calculateMoveCount();
+
+            if (moveCount > MAX_MOVES) {
+                currentPlacement[matchKey] = prevSlot;
+                calculateMoveCount();
+                playSound('error');
+                alert(`Limite atingido! Podes mover no máximo ${MAX_MOVES} palitos.`);
+            } else {
+                playSound('drop');
+                selectedMatchKey = null;
+                buildBoard();
+                checkSolution(false);
+            }
+        }
+
+        function onPointerDown(e, matchKey, el) {
+            startTimer();
+            initAudio();
+
+            if (selectedMatchKey === matchKey) {
+                selectedMatchKey = null;
+                buildBoard();
+                return;
+            }
+
+            selectedMatchKey = matchKey;
+            draggedMatchKey = matchKey;
+
+            const rect = el.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+
+            el.classList.add('dragging');
+            el.setPointerCapture(e.pointerId);
+
+            playSound('dragstart');
+
+            el.onpointermove = (pe) => onPointerMove(pe, el);
+            el.onpointerup = (pe) => onPointerUp(pe, el, matchKey);
+            el.onpointercancel = (pe) => onPointerUp(pe, el, matchKey);
+        }
+
+        function onPointerMove(e, el) {
+            if (!draggedMatchKey) return;
+
+            const container = document.getElementById('gridContainer').getBoundingClientRect();
+            const posX = e.clientX - container.left - dragOffset.x;
+            const posY = e.clientY - container.top - dragOffset.y;
+
+            el.style.left = `${posX}px`;
+            el.style.top = `${posY}px`;
+
+            let nearestSlotKey = null;
+            let minDistance = 55; // Raio de aproximação ampliado para facilitar o encaixe automático
+
+            const occupiedSlots = new Set(Object.values(currentPlacement));
+
+            // Permite encaixar em qualquer slot livre, independente de ser horizontal ou vertical (já que ele rotaciona sozinho)
+            Object.keys(ALL_SLOTS).forEach(slotKey => {
+                if (occupiedSlots.has(slotKey) && slotKey !== currentPlacement[draggedMatchKey]) return;
+
+                const targetSlot = ALL_SLOTS[slotKey];
+                const dist = Math.hypot(posX - targetSlot.x, posY - targetSlot.y);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestSlotKey = slotKey;
+                }
+            });
+
+            if (activeHoverSlot !== nearestSlotKey) {
+                activeHoverSlot = nearestSlotKey;
+                if (activeHoverSlot) {
+                    // Toca um leve som ao detectar a proximidade de encaixe
+                    playSound('rotate');
+                }
+                updateHighlights();
+            }
+        }
+
+        function updateHighlights() {
+            document.querySelectorAll('.grid-slot').forEach(slotEl => {
+                if (slotEl.dataset.slotKey === activeHoverSlot) {
+                    slotEl.classList.add('highlight');
+                } else {
+                    slotEl.classList.remove('highlight');
+                }
+            });
+        }
+
+        function onPointerUp(e, el, matchKey) {
+            if (!draggedMatchKey) return;
+
+            el.releasePointerCapture(e.pointerId);
+            el.classList.remove('dragging');
+
+            const targetSlot = activeHoverSlot;
+            activeHoverSlot = null;
+
+            if (targetSlot && targetSlot !== currentPlacement[matchKey]) {
+                moveMatchstickTo(matchKey, targetSlot);
+            } else {
+                revertPosition(el, currentPlacement[matchKey]);
+            }
+
+            draggedMatchKey = null;
+        }
+
+        function revertPosition(el, slotKey) {
+            const slot = ALL_SLOTS[slotKey];
+            el.style.left = `${slot.x}px`;
+            el.style.top = `${slot.y}px`;
+            buildBoard();
+        }
+
+        function checkSolution(isManualClick = false) {
+            const placedSlots = new Set(Object.values(currentPlacement));
+            const squareResult = countSquares(placedSlots);
+
+            const isExactSolution = squareResult.squareCount === 3 && squareResult.looseSticks === 0;
+
+            if (isExactSolution) {
+                stopTimer();
+                playSound('win');
+                openModal('victoryModal');
+            } else {
+                if (isManualClick) {
+                    playSound('error');
+                    alert(`Ainda não está correto! Foram formados ${squareResult.squareCount} quadrado(s) completos com ${squareResult.looseSticks} palito(s) de sobra. Tenta novamente!`);
+                }
+            }
+        }
+
+        function countSquares(slotsSet) {
+            const squareDefinitions = [
+                { name: 'Top',    slots: ['H_0_1', 'H_1_1', 'V_0_1', 'V_0_2'] },
+                { name: 'Center', slots: ['H_1_1', 'H_2_1', 'V_1_1', 'V_1_2'] },
+                { name: 'Left',   slots: ['H_1_0', 'H_2_0', 'V_1_0', 'V_1_1'] },
+                { name: 'Bottom', slots: ['H_2_1', 'H_3_1', 'V_2_1', 'V_2_2'] },
+                { name: 'Right',  slots: ['H_1_2', 'H_2_2', 'V_1_2', 'V_1_3'] }
+            ];
+
+            let squareCount = 0;
+            let usedInSquares = new Set();
+
+            squareDefinitions.forEach(sq => {
+                const isComplete = sq.slots.every(s => slotsSet.has(s));
+                if (isComplete) {
+                    squareCount++;
+                    sq.slots.forEach(s => usedInSquares.add(s));
+                }
+            });
+
+            let looseSticks = 0;
+            slotsSet.forEach(s => {
+                if (!usedInSquares.has(s)) looseSticks++;
+            });
+
+            return { squareCount, looseSticks };
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function resetGame() {
+            stopTimer();
+            currentPlacement = {};
+            selectedMatchKey = null;
+
+            INITIAL_PLACEMENTS.forEach((slotKey, idx) => {
+                currentPlacement[`M_${idx}`] = slotKey;
+            });
+
+            moveCount = 0;
+            remainingTime = TOTAL_TIME;
+            isGameActive = false;
+
+            renderTimer();
+            buildBoard();
+        }
+
+        window.onload = () => {
+            resetGame();
+        };
+    </script>
+</body>
+</html>

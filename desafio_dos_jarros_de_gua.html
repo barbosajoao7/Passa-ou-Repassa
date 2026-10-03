@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafio dos Jarros de Água - 6 Litros em 1 Minuto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;700&display=swap');
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Glassmorphism jug style */
+        .jug-container {
+            position: relative;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(4px);
+            border: 4px solid rgba(255, 255, 255, 0.85);
+            border-top: 2px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), inset 0 0 15px rgba(255, 255, 255, 0.6);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .jug-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.25), inset 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+
+        .jug-spout {
+            position: absolute;
+            top: -12px;
+            right: -15px;
+            width: 25px;
+            height: 20px;
+            border-right: 4px solid rgba(255, 255, 255, 0.85);
+            border-top: 4px solid rgba(255, 255, 255, 0.85);
+            border-radius: 0 10px 0 0;
+            transform: rotate(-15deg);
+        }
+
+        .jug-handle {
+            position: absolute;
+            left: -20px;
+            top: 20%;
+            width: 20px;
+            height: 60%;
+            border: 4px solid rgba(255, 255, 255, 0.85);
+            border-right: none;
+            border-radius: 15px 0 0 15px;
+        }
+
+        .water-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+            transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 0 0 12px 12px;
+            overflow: hidden;
+        }
+
+        .water-fill::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -50%;
+            width: 200%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: wave 2s infinite linear;
+        }
+
+        @keyframes wave {
+            0% { transform: translateX(0) scaleY(1); }
+            50% { transform: translateX(25%) scaleY(1.3); }
+            100% { transform: translateX(50%) scaleY(1); }
+        }
+
+        /* Waterfall animation */
+        .waterfall-stream {
+            background: linear-gradient(180deg, rgba(186, 230, 253, 0.9) 0%, rgba(56, 189, 248, 0.8) 100%);
+            background-size: 100% 200%;
+            animation: flow 1s linear infinite;
+        }
+
+        @keyframes flow {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100%; }
+        }
+
+        /* Pouring water animation stream */
+        .pour-stream {
+            position: absolute;
+            width: 8px;
+            background: linear-gradient(180deg, #7dd3fc, #0284c7);
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        /* Glass action buttons */
+        .btn-action {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(4px);
+            border: 2px solid #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.15s ease;
+        }
+
+        .btn-action:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
+            background: #ffffff;
+        }
+
+        .btn-action:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #confettiCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="bg-sky-200 h-screen w-screen overflow-hidden flex flex-col justify-between relative select-none">
+
+    <!-- Nature Landscape Background -->
+    <div class="absolute inset-0 pointer-events-none z-0">
+        <!-- Sky Gradient -->
+        <div class="absolute inset-0 bg-gradient-to-b from-sky-400 via-sky-200 to-emerald-100"></div>
+
+        <!-- Mountains & Waterfall SVG Hill -->
+        <svg class="absolute bottom-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 1000 600">
+            <!-- Background Hills -->
+            <path d="M 0,350 Q 250,200 500,320 T 1000,280 L 1000,600 L 0,600 Z" fill="#4ade80" opacity="0.7" />
+            <path d="M 0,400 Q 350,250 700,380 T 1000,350 L 1000,600 L 0,600 Z" fill="#22c55e" opacity="0.8" />
+            
+            <!-- Right Hill with Waterfall -->
+            <path d="M 650,150 Q 750,100 1000,120 L 1000,600 L 550,600 Z" fill="#15803d" />
+            
+            <!-- Waterfall Flow Area -->
+            <path d="M 820,120 Q 800,250 780,350 Q 750,420 500,480 Q 250,520 0,530 L 0,600 L 1000,600 L 1000,120 Z" fill="#16a34a" />
+            
+            <!-- River Track -->
+            <path d="M 830,120 Q 810,250 790,350 Q 760,430 500,485 Q 250,520 0,535 L 0,580 Q 250,560 510,520 Q 780,460 820,350 Q 840,250 850,120 Z" fill="#38bdf8" class="waterfall-stream" />
+            
+            <!-- Grass Details & Plant Tufts -->
+            <circle cx="200" cy="510" r="15" fill="#15803d" />
+            <circle cx="220" cy="515" r="12" fill="#22c55e" />
+            <circle cx="850" cy="220" r="20" fill="#15803d" />
+            <circle cx="870" cy="230" r="15" fill="#22c55e" />
+        </svg>
+
+        <!-- Two Pink Flowers with Yellow Center -->
+        <div class="absolute bottom-16 left-8 md:left-24 z-10 scale-75 md:scale-100 origin-bottom-left">
+            <svg width="120" height="120" viewBox="0 0 100 100">
+                <path d="M 35 90 Q 30 60 40 40" stroke="#15803d" stroke-width="5" fill="none"/>
+                <path d="M 65 90 Q 70 60 60 45" stroke="#15803d" stroke-width="5" fill="none"/>
+                <path d="M 35 70 Q 10 65 25 80 Z" fill="#22c55e"/>
+                <path d="M 65 75 Q 90 70 75 85 Z" fill="#22c55e"/>
+                <!-- Flower 1 -->
+                <g transform="translate(40,40)">
+                    <circle cx="-12" cy="0" r="8" fill="#f43f5e"/>
+                    <circle cx="12" cy="0" r="8" fill="#f43f5e"/>
+                    <circle cx="0" cy="-12" r="8" fill="#f43f5e"/>
+                    <circle cx="0" cy="12" r="8" fill="#f43f5e"/>
+                    <circle cx="-8" cy="-8" r="8" fill="#fb7185"/>
+                    <circle cx="8" cy="-8" r="8" fill="#fb7185"/>
+                    <circle cx="-8" cy="8" r="8" fill="#fb7185"/>
+                    <circle cx="8" cy="8" r="8" fill="#fb7185"/>
+                    <circle cx="0" cy="0" r="8" fill="#facc15"/>
+                </g>
+                <!-- Flower 2 -->
+                <g transform="translate(60,45) scale(0.85)">
+                    <circle cx="-12" cy="0" r="8" fill="#f43f5e"/>
+                    <circle cx="12" cy="0" r="8" fill="#f43f5e"/>
+                    <circle cx="0" cy="-12" r="8" fill="#f43f5e"/>
+                    <circle cx="0" cy="12" r="8" fill="#f43f5e"/>
+                    <circle cx="-8" cy="-8" r="8" fill="#fb7185"/>
+                    <circle cx="8" cy="-8" r="8" fill="#fb7185"/>
+                    <circle cx="-8" cy="8" r="8" fill="#fb7185"/>
+                    <circle cx="8" cy="8" r="8" fill="#fb7185"/>
+                    <circle cx="0" cy="0" r="8" fill="#facc15"/>
+                </g>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Top Navigation Header / HUD -->
+    <header class="relative z-20 w-full p-4 flex justify-between items-center max-w-5xl mx-auto">
+        <!-- Countdown Timer & Target Info -->
+        <div class="flex items-center gap-4 bg-white/80 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-lg border border-white">
+            <div class="flex flex-col">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                    <i class="fa-solid fa-stopwatch text-rose-500"></i> Tempo
+                </span>
+                <span id="timerDisplay" class="font-game text-xl md:text-2xl text-rose-600 transition-colors">01:00.000</span>
+            </div>
+            <div class="h-8 w-px bg-slate-300"></div>
+            <div class="flex flex-col">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Objetivo</span>
+                <span class="font-game text-xl md:text-2xl text-blue-600">6 Litros</span>
+            </div>
+        </div>
+
+        <!-- Controls: Sound, Pause/Settings, Restart, Help -->
+        <div class="flex items-center gap-2 md:gap-3">
+            <button id="soundBtn" onclick="toggleSound()" class="w-11 h-11 rounded-2xl bg-white/80 backdrop-blur-md border border-white text-slate-700 hover:text-blue-600 shadow-lg flex items-center justify-center transition hover:scale-105 active:scale-95" title="Som">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-lg"></i>
+            </button>
+            <button onclick="togglePause()" class="w-11 h-11 rounded-2xl bg-white/80 backdrop-blur-md border border-white text-slate-700 hover:text-blue-600 shadow-lg flex items-center justify-center transition hover:scale-105 active:scale-95" title="Pausar / Configurações">
+                <i class="fa-solid fa-gear text-lg"></i>
+            </button>
+            <button onclick="resetGame()" class="w-11 h-11 rounded-2xl bg-white/80 backdrop-blur-md border border-white text-slate-700 hover:text-blue-600 shadow-lg flex items-center justify-center transition hover:scale-105 active:scale-95" title="Reiniciar">
+                <i class="fa-solid fa-rotate-right text-lg"></i>
+            </button>
+            <button onclick="openModal('helpModal')" class="w-11 h-11 rounded-2xl bg-white/80 backdrop-blur-md border border-white text-slate-700 hover:text-blue-600 shadow-lg flex items-center justify-center transition hover:scale-105 active:scale-95" title="Ajuda">
+                <i class="fa-solid fa-circle-question text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Interactive Jug Stage -->
+    <main class="relative z-10 flex-1 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-20 px-4 pb-12 max-w-4xl mx-auto w-full">
+        
+        <div id="pourStream" class="pour-stream"></div>
+
+        <!-- JUG A (5 LITERS) -->
+        <div class="flex flex-col items-center gap-3 group">
+            <div class="text-center">
+                <span class="font-game text-slate-800 text-lg md:text-xl drop-shadow-sm">Jarro A (5L)</span>
+            </div>
+            
+            <div id="jugAVisual" class="jug-container w-36 h-48 md:w-44 md:h-56 rounded-b-3xl relative flex items-center justify-center">
+                <div class="jug-spout"></div>
+                <div class="jug-handle"></div>
+                
+                <div id="waterA" class="water-fill" style="height: 0%;"></div>
+                
+                <div class="relative z-10 font-game text-3xl md:text-4xl text-blue-900 drop-shadow-[0_2px_2px_rgba(255,255,255,0.8)] pointer-events-none">
+                    <span id="labelA">0 L</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2 w-full max-w-[180px]">
+                <button onclick="fillJug('A')" class="btn-action font-game py-2 px-3 rounded-xl text-blue-700 flex items-center justify-center gap-2 text-sm shadow">
+                    <i class="fa-solid fa-faucet-drip"></i> Encher (5L)
+                </button>
+                <button onclick="transferWater('A', 'B')" class="btn-action font-game py-2 px-3 rounded-xl text-amber-700 flex items-center justify-center gap-2 text-sm shadow">
+                    <i class="fa-solid fa-right-long"></i> Passar para B
+                </button>
+                <button onclick="emptyJug('A')" class="btn-action font-game py-2 px-3 rounded-xl text-rose-700 flex items-center justify-center gap-2 text-sm shadow">
+                    <i class="fa-solid fa-trash-can"></i> Esvaziar
+                </button>
+            </div>
+        </div>
+
+        <!-- JUG B (7 LITERS) -->
+        <div class="flex flex-col items-center gap-3 group">
+            <div class="text-center">
+                <span class="font-game text-slate-800 text-lg md:text-xl drop-shadow-sm">Jarro B (7L)</span>
+            </div>
+            
+            <div id="jugBVisual" class="jug-container w-40 h-56 md:w-48 md:h-64 rounded-b-3xl relative flex items-center justify-center">
+                <div class="jug-spout"></div>
+                <div class="jug-handle"></div>
+                
+                <div id="waterB" class="water-fill" style="height: 0%;"></div>
+                
+                <div class="relative z-10 font-game text-3xl md:text-4xl text-blue-900 drop-shadow-[0_2px_2px_rgba(255,255,255,0.8)] pointer-events-none">
+                    <span id="labelB">0 L</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2 w-full max-w-[180px]">
+                <button onclick="fillJug('B')" class="btn-action font-game py-2 px-3 rounded-xl text-blue-700 flex items-center justify-center gap-2 text-sm shadow">
+                    <i class="fa-solid fa-faucet-drip"></i> Encher (7L)
+                </button>
+                <button onclick="transferWater('B', 'A')" class="btn-action font-game py-2 px-3 rounded-xl text-amber-700 flex items-center justify-center gap-2 text-sm shadow">
+                    <i class="fa-solid fa-left-long"></i> Passar para A
+                </button>
+                <button onclick="emptyJug('B')" class="btn-action font-game py-2 px-3 rounded-xl text-rose-700 flex items-center justify-center gap-2 text-sm shadow">
+                    <i class="fa-solid fa-trash-can"></i> Esvaziar
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Stats / Move counter -->
+    <footer class="relative z-10 pb-4 text-center">
+        <div class="inline-flex items-center gap-3 bg-white/70 backdrop-blur-md px-6 py-2 rounded-full shadow border border-white text-slate-700 font-bold text-sm">
+            <span>Jogadas: <span id="movesDisplay" class="font-game text-blue-600 text-lg">0</span></span>
+        </div>
+    </footer>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-white relative animate-in fade-in zoom-in duration-200">
+            <button onclick="closeModal('helpModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <div class="text-center mb-4">
+                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-2 text-2xl">
+                    <i class="fa-solid fa-lightbulb"></i>
+                </div>
+                <h3 class="font-game text-2xl text-slate-800">Como Jogar?</h3>
+            </div>
+
+            <div class="space-y-3 text-slate-600 text-sm leading-relaxed">
+                <p class="bg-amber-50 p-3 rounded-xl text-amber-900 font-semibold border border-amber-200">
+                    <i class="fa-solid fa-clock text-amber-600 mr-1"></i> Desafio: Obter exatamente <strong class="text-blue-700">6 Litros de água</strong> em <strong class="text-rose-600">1 minuto (60s)</strong>!
+                </p>
+                <p>Você tem dois jarros sem marcas intermediárias:</p>
+                <ul class="list-disc list-inside space-y-1 font-medium pl-1">
+                    <li><strong>Jarro A:</strong> capacidade para 5 Litros</li>
+                    <li><strong>Jarro B:</strong> capacidade para 7 Litros</li>
+                </ul>
+                <p><strong>Ações:</strong></p>
+                <ul class="list-disc list-inside space-y-1 text-xs text-slate-500 pl-1">
+                    <li><strong>Encher:</strong> Enche completamente o jarro no rio.</li>
+                    <li><strong>Esvaziar:</strong> Esvazia totalmente o jarro.</li>
+                    <li><strong>Passar:</strong> Transfere de um para o outro até encher o destino ou esvaziar a origem.</li>
+                </ul>
+            </div>
+
+            <button onclick="closeModal('helpModal')" class="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-game rounded-2xl shadow-lg transition active:scale-95">
+                Entendi, Vamos Jogar!
+            </button>
+        </div>
+    </div>
+
+    <!-- Pause / Settings Modal -->
+    <div id="pauseModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-white relative animate-in fade-in zoom-in duration-200">
+            <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl">
+                <i class="fa-solid fa-pause"></i>
+            </div>
+            <h3 class="font-game text-2xl text-slate-800 mb-4">Jogo Pausado</h3>
+
+            <div class="space-y-3">
+                <button onclick="togglePause()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-game rounded-2xl shadow transition active:scale-95">
+                    <i class="fa-solid fa-play mr-2"></i> Continuar
+                </button>
+                <button onclick="closeModal('pauseModal'); resetGame();" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-game rounded-2xl shadow transition active:scale-95">
+                    <i class="fa-solid fa-rotate-right mr-2"></i> Reiniciar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border border-white relative animate-in fade-in zoom-in duration-300">
+            <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            
+            <h2 class="font-game text-3xl text-slate-800 mb-1">Parabéns!</h2>
+            <p class="text-slate-500 font-medium mb-6">Você obteve exatamente 6 Litros de água a tempo!</p>
+
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <span class="text-xs text-slate-400 font-bold block uppercase">Tempo Sobrando</span>
+                    <span id="finalTime" class="font-game text-xl text-emerald-600">00:00.000</span>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <span class="text-xs text-slate-400 font-bold block uppercase">Jogadas</span>
+                    <span id="finalMoves" class="font-game text-xl text-blue-600">0</span>
+                </div>
+            </div>
+
+            <button onclick="resetGame(); closeModal('victoryModal');" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-game rounded-2xl shadow-lg transition active:scale-95 text-lg">
+                <i class="fa-solid fa-rotate-right mr-2"></i> Jogar Novamente
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal (Timeout) -->
+    <div id="gameOverModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border border-white relative animate-in fade-in zoom-in duration-300">
+            <div class="w-20 h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl shadow-inner">
+                <i class="fa-solid fa-hourglass-end"></i>
+            </div>
+            
+            <h2 class="font-game text-3xl text-rose-600 mb-1">Tempo Esgotado!</h2>
+            <p class="text-slate-500 font-medium mb-6">O tempo de 1 minuto acabou antes de você obter os 6 litros.</p>
+
+            <button onclick="resetGame(); closeModal('gameOverModal');" class="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white font-game rounded-2xl shadow-lg transition active:scale-95 text-lg">
+                <i class="fa-solid fa-rotate-right mr-2"></i> Tentar Novamente
+            </button>
+        </div>
+    </div>
+
+    <canvas id="confettiCanvas"></canvas>
+
+    <script>
+        // Capacities
+        const CAP_A = 5;
+        const CAP_B = 7;
+        const TARGET = 6;
+        const TOTAL_TIME_MS = 60 * 1000; // 1 minute countdown
+
+        let currentA = 0;
+        let currentB = 0;
+        let moves = 0;
+        
+        let timerInterval = null;
+        let remainingTime = TOTAL_TIME_MS;
+        let lastTimestamp = null;
+        let isGameActive = false;
+        let isPaused = false;
+        let soundEnabled = true;
+
+        // Web Audio API Synthesizer
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'fill') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.3, now + 0.2);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } else if (type === 'empty') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'pour') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(350, now);
+                osc.frequency.linearRampToValueAtTime(450, now + 0.5);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'victory') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.4);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.12);
+                    osc.stop(now + idx * 0.12 + 0.4);
+                });
+            } else if (type === 'gameover') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.6);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-lg';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-lg text-rose-500';
+            }
+        }
+
+        // Countdown Timer Logic (1 min / 60s)
+        function startTimer() {
+            if (!isGameActive && remainingTime > 0) {
+                isGameActive = true;
+                lastTimestamp = performance.now();
+                timerInterval = requestAnimationFrame(updateCountdown);
+            }
+        }
+
+        function updateCountdown(timestamp) {
+            if (!isGameActive || isPaused) return;
+
+            const delta = timestamp - lastTimestamp;
+            lastTimestamp = timestamp;
+
+            remainingTime -= delta;
+
+            if (remainingTime <= 0) {
+                remainingTime = 0;
+                renderTimeDisplay();
+                triggerGameOver();
+                return;
+            }
+
+            renderTimeDisplay();
+            timerInterval = requestAnimationFrame(updateCountdown);
+        }
+
+        function renderTimeDisplay() {
+            const ms = Math.floor(remainingTime % 1000);
+            const seconds = Math.floor((remainingTime / 1000) % 60);
+            const minutes = Math.floor(remainingTime / (1000 * 60));
+
+            const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+            const displayEl = document.getElementById('timerDisplay');
+            displayEl.innerText = formatted;
+
+            if (remainingTime <= 10000) {
+                displayEl.classList.add('animate-pulse');
+            } else {
+                displayEl.classList.remove('animate-pulse');
+            }
+        }
+
+        function stopTimer() {
+            isGameActive = false;
+            if (timerInterval) {
+                cancelAnimationFrame(timerInterval);
+            }
+        }
+
+        function togglePause() {
+            if (remainingTime <= 0 || currentA === TARGET || currentB === TARGET) return;
+            if (!isGameActive) {
+                openModal('pauseModal');
+                return;
+            }
+
+            if (isPaused) {
+                isPaused = false;
+                closeModal('pauseModal');
+                lastTimestamp = performance.now();
+                timerInterval = requestAnimationFrame(updateCountdown);
+            } else {
+                isPaused = true;
+                stopTimer();
+                openModal('pauseModal');
+            }
+        }
+
+        function resetTimer() {
+            stopTimer();
+            remainingTime = TOTAL_TIME_MS;
+            isPaused = false;
+            renderTimeDisplay();
+        }
+
+        // UI Render Update
+        function updateUI() {
+            const pctA = (currentA / CAP_A) * 100;
+            const pctB = (currentB / CAP_B) * 100;
+
+            document.getElementById('waterA').style.height = `${pctA}%`;
+            document.getElementById('waterB').style.height = `${pctB}%`;
+
+            document.getElementById('labelA').innerText = `${currentA} L`;
+            document.getElementById('labelB').innerText = `${currentB} L`;
+
+            document.getElementById('movesDisplay').innerText = moves;
+        }
+
+        // Action Handlers
+        function fillJug(jug) {
+            if (remainingTime <= 0) return;
+            startTimer();
+
+            if (jug === 'A') {
+                if (currentA === CAP_A) return;
+                currentA = CAP_A;
+            } else {
+                if (currentB === CAP_B) return;
+                currentB = CAP_B;
+            }
+            moves++;
+            playSound('fill');
+            updateUI();
+            checkVictory();
+        }
+
+        function emptyJug(jug) {
+            if (remainingTime <= 0) return;
+            startTimer();
+
+            if (jug === 'A') {
+                if (currentA === 0) return;
+                currentA = 0;
+            } else {
+                if (currentB === 0) return;
+                currentB = 0;
+            }
+            moves++;
+            playSound('empty');
+            updateUI();
+            checkVictory();
+        }
+
+        function transferWater(from, to) {
+            if (remainingTime <= 0) return;
+            startTimer();
+
+            let poured = false;
+
+            if (from === 'A' && to === 'B') {
+                if (currentA === 0 || currentB === CAP_B) return;
+                const availableSpaceB = CAP_B - currentB;
+                const amountToTransfer = Math.min(currentA, availableSpaceB);
+                
+                currentA -= amountToTransfer;
+                currentB += amountToTransfer;
+                poured = true;
+            } else if (from === 'B' && to === 'A') {
+                if (currentB === 0 || currentA === CAP_A) return;
+                const availableSpaceA = CAP_A - currentA;
+                const amountToTransfer = Math.min(currentB, availableSpaceA);
+
+                currentB -= amountToTransfer;
+                currentA += amountToTransfer;
+                poured = true;
+            }
+
+            if (poured) {
+                moves++;
+                playSound('pour');
+                triggerPourAnimation(from, to);
+                updateUI();
+                checkVictory();
+            }
+        }
+
+        // Visual Pour Stream Effect
+        function triggerPourAnimation(from, to) {
+            const visualA = document.getElementById('jugAVisual').getBoundingClientRect();
+            const visualB = document.getElementById('jugBVisual').getBoundingClientRect();
+            const stream = document.getElementById('pourStream');
+
+            let startX, startY, endX, endY;
+
+            if (from === 'A') {
+                startX = visualA.right - 20;
+                startY = visualA.top + 20;
+                endX = visualB.left + visualB.width / 2;
+                endY = visualB.top + 10;
+            } else {
+                startX = visualB.left + 20;
+                startY = visualB.top + 20;
+                endX = visualA.left + visualA.width / 2;
+                endY = visualA.top + 10;
+            }
+
+            const distance = Math.hypot(endX - startX, endY - startY);
+            const angle = Math.atan2(endY - startY, endX - startX) * (180 / Math.PI);
+
+            stream.style.left = `${startX}px`;
+            stream.style.top = `${startY}px`;
+            stream.style.height = `${distance}px`;
+            stream.style.transformOrigin = 'top center';
+            stream.style.transform = `rotate(${angle - 90}deg)`;
+            stream.style.opacity = '1';
+
+            setTimeout(() => {
+                stream.style.opacity = '0';
+            }, 450);
+        }
+
+        function checkVictory() {
+            if (currentA === TARGET || currentB === TARGET) {
+                stopTimer();
+                playSound('victory');
+
+                document.getElementById('finalTime').innerText = document.getElementById('timerDisplay').innerText;
+                document.getElementById('finalMoves').innerText = moves;
+
+                setTimeout(() => {
+                    openModal('victoryModal');
+                    startConfetti();
+                }, 400);
+            }
+        }
+
+        function triggerGameOver() {
+            stopTimer();
+            playSound('gameover');
+            openModal('gameOverModal');
+        }
+
+        function resetGame() {
+            currentA = 0;
+            currentB = 0;
+            moves = 0;
+            resetTimer();
+            updateUI();
+            stopConfetti();
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // Confetti Particle System
+        let confettiAnimationId = null;
+        const confettiCanvas = document.getElementById('confettiCanvas');
+        const ctx = confettiCanvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function startConfetti() {
+            particles = [];
+            const colors = ['#38bdf8', '#facc15', '#4ade80', '#f43f5e', '#a855f7'];
+            for (let i = 0; i < 120; i++) {
+                particles.push({
+                    x: Math.random() * confettiCanvas.width,
+                    y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    vy: Math.random() * 3 + 2,
+                    vx: Math.random() * 2 - 1,
+                    rot: Math.random() * 360,
+                    rotSpeed: Math.random() * 6 - 3
+                });
+            }
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            
+            particles.forEach(p => {
+                p.y += p.vy;
+                p.x += p.vx;
+                p.rot += p.rotSpeed;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rot * Math.PI) / 180);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+
+                if (p.y > confettiCanvas.height) {
+                    p.y = -10;
+                    p.x = Math.random() * confettiCanvas.width;
+                }
+            });
+
+            confettiAnimationId = requestAnimationFrame(animateConfetti);
+        }
+
+        function stopConfetti() {
+            if (confettiAnimationId) {
+                cancelAnimationFrame(confettiAnimationId);
+                ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            }
+        }
+
+        window.onload = function() {
+            updateUI();
+            renderTimeDisplay();
+        };
+    </script>
+</body>
+</html>

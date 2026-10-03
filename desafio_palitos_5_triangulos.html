@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desafio dos Palitos — 5 Triângulos</title>
+<style>
+  :root{
+    --navy:#092d52;
+    --gold:#f5bd00;
+    --red:#ef3d3d;
+    --green:#0a9d72;
+    --bg:#f6f8fb;
+    --line:#17212b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:linear-gradient(135deg,#f8fafc,#eaf0f6);
+    color:var(--navy);
+    min-height:100vh;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:22px}
+  header{
+    background:#fff;border-radius:18px;padding:20px 24px;
+    box-shadow:0 8px 28px rgba(20,40,60,.10);
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    margin-bottom:18px;
+  }
+  h1{margin:0;font-size:clamp(24px,4vw,38px);font-weight:900}
+  .subtitle{margin:6px 0 0;font-size:16px;color:#4e6172}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .stat{
+    min-width:112px;text-align:center;background:#f1f5f9;border-radius:13px;
+    padding:10px 14px;font-weight:800
+  }
+  .stat span{display:block;font-size:25px;color:var(--navy)}
+  .game{
+    background:#fff;border-radius:20px;box-shadow:0 10px 35px rgba(20,40,60,.12);
+    overflow:hidden;
+  }
+  .topbar{
+    padding:14px 18px;background:var(--navy);color:white;
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .instruction{font-weight:800;font-size:17px}.rotate-hint{font-size:13px;opacity:.9;margin-top:3px}
+  .buttons{display:flex;gap:8px}
+  button{
+    border:0;border-radius:10px;padding:10px 15px;font-weight:800;cursor:pointer;
+    background:white;color:var(--navy);transition:.15s transform,.15s opacity;
+  }
+  button:hover{transform:translateY(-1px)}
+  button:active{transform:translateY(1px)}
+  .board-wrap{padding:18px;background:#eef3f7}
+  svg{
+    display:block;width:100%;max-width:900px;height:auto;margin:auto;
+    background:#fff;border:3px solid #17212b;border-radius:14px;
+    touch-action:none;user-select:none;
+  }
+  .lattice{stroke:#c8d1d9;stroke-width:2;opacity:.55}
+  .dot{fill:#c8d1d9;opacity:.8}
+  .target{stroke:#7f8b95;stroke-width:4;stroke-dasharray:7 8;opacity:.22;stroke-linecap:round}
+  .stick{
+    stroke:var(--gold);stroke-width:18;stroke-linecap:round;
+    filter:drop-shadow(0 5px 3px rgba(0,0,0,.22));
+    cursor:grab;
+  }
+  .stick:active{cursor:grabbing}
+  .stick-end{fill:var(--red);stroke:#c92828;stroke-width:2}
+  .ghost{stroke:#ffd95a;stroke-width:18;stroke-linecap:round;opacity:.35}
+  .status{
+    padding:14px 18px;background:#fff;display:flex;justify-content:center;
+    text-align:center;font-weight:800;color:#536474;min-height:50px;align-items:center
+  }
+  .status.success{color:var(--green);font-size:18px}
+  .status.warn{color:#a36a00}
+  .help{
+    padding:18px 22px 22px;display:grid;grid-template-columns:1fr 1fr;gap:16px;
+    background:#fff
+  }
+  .card{background:#f7f9fb;border-radius:13px;padding:14px 16px}
+  .card h3{margin:0 0 7px;font-size:16px}
+  .card p{margin:0;color:#586b7c;line-height:1.45;font-size:14px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:9px;font-size:13px;color:#586b7c}
+  .legend i{display:inline-block;width:28px;height:5px;border-radius:5px;vertical-align:middle;margin-right:5px}
+  .gold{background:var(--gold)} .dash{border-top:3px dashed #7f8b95}
+  @media(max-width:700px){
+    header{display:block}.stats{justify-content:flex-start;margin-top:15px}
+    .help{grid-template-columns:1fr}
+    .topbar{display:block}.buttons{margin-top:10px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>🔺 Desafio dos Palitos</h1>
+      <div class="subtitle">Mova <b>3 palitos</b> e forme <b>5 triângulos</b>.</div>
+    </div>
+    <div class="stats">
+      <div class="stat">Movimentos<span id="moves">0 / 3</span></div>
+      <div class="stat">Triângulos<span id="triangles">3</span></div>
+    </div>
+  </header>
+
+  <section class="game">
+    <div class="topbar">
+      <div><div class="instruction">Arraste um palito para uma posição marcada. Ele <b>gira e encaixa automaticamente</b>.</div><div class="rotate-hint">A orientação não precisa ser exata: basta aproximar o palito do alvo.</div></div>
+      <div class="buttons">
+        <button id="reset">↻ Reiniciar</button>
+        <button id="showTargets">◌ Posições</button>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <svg id="board" viewBox="0 0 760 520" aria-label="Jogo de palitos">
+        <!-- Malha de encaixe -->
+        <g id="lattice"></g>
+        <g id="targets"></g>
+        <g id="sticks"></g>
+        <g id="ends"></g>
+      </svg>
+    </div>
+
+    <div id="status" class="status">
+      Dica: os palitos ficam amarelos e os pontos vermelhos indicam suas extremidades.
+    </div>
+
+    <div class="help">
+      <div class="card">
+        <h3>🎯 Como jogar</h3>
+        <p>Pressione e arraste qualquer palito. Solte próximo de uma das posições possíveis. O palito será <b>girado e encaixado automaticamente</b> na posição mais próxima.</p>
+        <div class="legend">
+          <span><i class="gold"></i>palito</span>
+          <span><i class="dash"></i>posição de encaixe</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>🏆 Objetivo</h3>
+        <p>Use exatamente <b>3 movimentos</b> para chegar a <b>5 triângulos</b>. Os triângulos são contados automaticamente, inclusive os que ficam dentro de outros.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById("board");
+  const latticeG = document.getElementById("lattice");
+  const targetsG = document.getElementById("targets");
+  const sticksG = document.getElementById("sticks");
+  const endsG = document.getElementById("ends");
+  const movesEl = document.getElementById("moves");
+  const trianglesEl = document.getElementById("triangles");
+  const statusEl = document.getElementById("status");
+  const resetBtn = document.getElementById("reset");
+  const showBtn = document.getElementById("showTargets");
+
+  // Malha triangular. Todas as posições abaixo têm o mesmo comprimento de palito.
+  const rows = [
+    [{x:140,y:120},{x:300,y:120},{x:460,y:120},{x:620,y:120}],
+    [{x:60,y:260},{x:220,y:260},{x:380,y:260},{x:540,y:260},{x:700,y:260}],
+    [{x:140,y:400},{x:300,y:400},{x:460,y:400},{x:620,y:400}]
+  ];
+  const nodes = rows.flat();
+
+  const key = (a,b) => {
+    const A = `${a.x},${a.y}`, B = `${b.x},${b.y}`;
+    return A < B ? `${A}|${B}` : `${B}|${A}`;
+  };
+  const nodeByKey = new Map(nodes.map(p => [`${p.x},${p.y}`,p]));
+
+  // Gera todas as posições válidas da malha.
+  const edgeMap = new Map();
+  function addEdge(a,b){
+    const k=key(a,b);
+    if(!edgeMap.has(k)) edgeMap.set(k,{a,b,k});
+  }
+  rows.forEach(row => {
+    for(let i=0;i<row.length-1;i++) addEdge(row[i],row[i+1]);
+  });
+  // diagonais entre linhas vizinhas
+  for(let r=0;r<rows.length-1;r++){
+    const upper=rows[r], lower=rows[r+1];
+    for(const a of upper){
+      for(const b of lower){
+        if(Math.hypot(a.x-b.x,a.y-b.y) < 165) addEdge(a,b);
+      }
+    }
+  }
+  const edges=[...edgeMap.values()];
+
+  // Estado inicial: três triângulos lado a lado.
+  const initialKeys = [
+    key(rows[2][0],rows[2][1]),
+    key(rows[2][1],rows[2][2]),
+    key(rows[2][2],rows[2][3]),
+    key(rows[1][1],rows[2][0]), key(rows[1][1],rows[2][1]),
+    key(rows[1][2],rows[2][1]), key(rows[1][2],rows[2][2]),
+    key(rows[1][3],rows[2][2]), key(rows[1][3],rows[2][3])
+  ];
+
+  let sticks=[], moves=0, dragging=null, targetsVisible=false;
+
+  function makeEl(name, attrs={}){
+    const el=document.createElementNS(NS,name);
+    Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+    return el;
+  }
+
+  function drawLattice(){
+    latticeG.innerHTML="";
+    rows.forEach(row=>row.forEach(p=>
+      latticeG.appendChild(makeEl("circle",{cx:p.x,cy:p.y,r:4,class:"dot"}))
+    ));
+    edges.forEach(e=>latticeG.appendChild(makeEl("line",{
+      x1:e.a.x,y1:e.a.y,x2:e.b.x,y2:e.b.y,class:"lattice"
+    })));
+  }
+
+  function drawTargets(){
+    targetsG.innerHTML="";
+    if(!targetsVisible) return;
+    edges.forEach(e=>targetsG.appendChild(makeEl("line",{
+      x1:e.a.x,y1:e.a.y,x2:e.b.x,y2:e.b.y,class:"target"
+    })));
+  }
+
+  function render(){
+    sticksG.innerHTML=""; endsG.innerHTML="";
+    sticks.forEach((s,i)=>{
+      const g=makeEl("g");
+      const line=makeEl("line",{
+        x1:s.a.x,y1:s.a.y,x2:s.b.x,y2:s.b.y,class:"stick",
+        "data-index":i
+      });
+      line.addEventListener("pointerdown",e=>startDrag(e,i));
+      g.appendChild(line);
+      sticksG.appendChild(g);
+      [s.a,s.b].forEach(p=>endsG.appendChild(makeEl("circle",{
+        cx:p.x,cy:p.y,r:9,class:"stick-end"
+      })));
+    });
+
+    movesEl.textContent=`${moves} / 3`;
+    const n=countTriangles();
+    trianglesEl.textContent=n;
+
+    if(n===5 && moves===3){
+      statusEl.textContent="🎉 PARABÉNS! Você formou os 5 triângulos com exatamente 3 movimentos!";
+      statusEl.className="status success";
+    }else if(n>=5 && moves!==3){
+      statusEl.textContent=moves<3
+        ? "Você já chegou a 5 triângulos — faça os 3 movimentos do desafio."
+        : "Você formou 5 triângulos, mas usou mais de 3 movimentos. Reinicie para tentar novamente.";
+      statusEl.className="status warn";
+    }else if(moves===3){
+      statusEl.textContent="Você usou os 3 movimentos. Ainda não são 5 triângulos — reinicie e tente novamente.";
+      statusEl.className="status warn";
+    }else{
+      statusEl.textContent="Arraste um palito. Ao aproximá-lo de uma posição tracejada, ele gira e encaixa automaticamente.";
+      statusEl.className="status";
+    }
+  }
+
+  function svgPoint(evt){
+    const pt=svg.createSVGPoint();
+    pt.x=evt.clientX; pt.y=evt.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function midpoint(s){
+    return {x:(s.a.x+s.b.x)/2,y:(s.a.y+s.b.y)/2};
+  }
+
+  function lengthOf(s){return Math.hypot(s.b.x-s.a.x,s.b.y-s.a.y);}
+
+  // Cria um palito com o mesmo comprimento, centrado em c e orientado como o alvo.
+  function orientedStick(center,target,length){
+    const dx=target.b.x-target.a.x, dy=target.b.y-target.a.y;
+    const d=Math.hypot(dx,dy)||1;
+    const ux=dx/d, uy=dy/d;
+    return {
+      a:{x:center.x-ux*length/2,y:center.y-uy*length/2},
+      b:{x:center.x+ux*length/2,y:center.y+uy*length/2}
+    };
+  }
+
+  function startDrag(evt,index){
+    if(moves>=3) return;
+    evt.preventDefault();
+    const p=svgPoint(evt), s=sticks[index], c=midpoint(s);
+    dragging={
+      index,
+      startA:{...s.a}, startB:{...s.b},
+      pointerOffset:{x:p.x-c.x,y:p.y-c.y},
+      currentTarget:null
+    };
+    evt.currentTarget.setPointerCapture?.(evt.pointerId);
+    statusEl.textContent="Mova o palito. Ele gira automaticamente quando se aproxima de uma posição.";
+    statusEl.className="status";
+    document.addEventListener("pointermove",dragMove);
+    document.addEventListener("pointerup",endDrag,{once:true});
+  }
+
+  function nearestTarget(center,index){
+    let best=null,bestDist=Infinity;
+    for(const e of edges){
+      const occupied=sticks.some((other,j)=>j!==index && key(other.a,other.b)===e.k);
+      if(occupied) continue;
+      const ec={x:(e.a.x+e.b.x)/2,y:(e.a.y+e.b.y)/2};
+      const d=Math.hypot(center.x-ec.x,center.y-ec.y);
+      if(d<bestDist){bestDist=d;best=e;}
+    }
+    return {edge:best,dist:bestDist};
+  }
+
+  function dragMove(evt){
+    if(!dragging) return;
+    const p=svgPoint(evt);
+    const center={
+      x:p.x-dragging.pointerOffset.x,
+      y:p.y-dragging.pointerOffset.y
+    };
+    const s=sticks[dragging.index];
+    const len=lengthOf({a:dragging.startA,b:dragging.startB});
+    const near=nearestTarget(center,dragging.index);
+
+    // Dentro da zona de encaixe: o palito gira visualmente para a direção da posição.
+    if(near.edge && near.dist<=105){
+      const ec={x:(near.edge.a.x+near.edge.b.x)/2,y:(near.edge.a.y+near.edge.b.y)/2};
+      dragging.currentTarget=near.edge;
+      const snapped=orientedStick(ec,near.edge,len);
+      s.a=snapped.a; s.b=snapped.b;
+    }else{
+      dragging.currentTarget=null;
+      // Fora da zona de encaixe, o usuário pode movimentar o palito livremente.
+      // A orientação permanece a que ele tinha antes do arraste.
+      const dx=center.x-(dragging.startA.x+dragging.startB.x)/2;
+      const dy=center.y-(dragging.startA.y+dragging.startB.y)/2;
+      s.a={x:dragging.startA.x+dx,y:dragging.startA.y+dy};
+      s.b={x:dragging.startB.x+dx,y:dragging.startB.y+dy};
+    }
+    render();
+  }
+
+  function endDrag(){
+    if(!dragging) return;
+    document.removeEventListener("pointermove",dragMove);
+    const i=dragging.index,s=sticks[i];
+    const near=dragging.currentTarget;
+
+    if(near){
+      const oldKey=key(dragging.startA,dragging.startB);
+      s.a={...near.a}; s.b={...near.b};
+      if(near.k!==oldKey) moves++;
+      statusEl.textContent="✓ Palito encaixado e girado automaticamente.";
+      statusEl.className="status";
+    }else{
+      s.a={...dragging.startA}; s.b={...dragging.startB};
+      statusEl.textContent="Aproxime o centro do palito de uma posição tracejada para ele girar e encaixar.";
+      statusEl.className="status warn";
+    }
+    dragging=null;
+    render();
+  }
+
+  // --- Contagem geométrica correta ---
+  // Um lado de um triângulo pode ser formado por 1 ou mais palitos colineares.
+  // Assim, o grande triângulo externo da solução também é contado.
+  function countTriangles(){
+    const occupied=sticks.map(s=>({a:s.a,b:s.b}));
+    const pointMap=new Map();
+    function pkey(p){return `${Math.round(p.x)},${Math.round(p.y)}`;}
+    function addPoint(p){pointMap.set(pkey(p),{x:Math.round(p.x),y:Math.round(p.y)});}
+    occupied.forEach(s=>{addPoint(s.a);addPoint(s.b);});
+    const pts=[...pointMap.values()];
+
+    // Grafo: cada palito é uma aresta. Dois pontos estão conectados por um lado
+    // se existe um caminho composto apenas por palitos colineares entre eles.
+    function connectedAlongSide(A,B){
+      const vx=B.x-A.x, vy=B.y-A.y;
+      const L=Math.hypot(vx,vy); if(L<1) return false;
+      const ux=vx/L, uy=vy/L;
+      const onLine=p=>Math.abs((p.x-A.x)*vy-(p.y-A.y)*vx)<3;
+      const forward=p=>(p.x-A.x)*ux+(p.y-A.y)*uy;
+      const relevant=pts.filter(onLine).filter(p=>forward(p)>=-2 && forward(p)<=L+2);
+      if(!relevant.some(p=>Math.hypot(p.x-A.x,p.y-A.y)<3) ||
+         !relevant.some(p=>Math.hypot(p.x-B.x,p.y-B.y)<3)) return false;
+
+      // Divide o segmento AB pelos pontos da malha e exige um palito em cada trecho.
+      relevant.sort((p,q)=>forward(p)-forward(q));
+      for(let i=0;i<relevant.length-1;i++){
+        const P=relevant[i],Q=relevant[i+1];
+        const dP=forward(P), dQ=forward(Q);
+        if(dQ-dP<3) continue;
+        const has=occupied.some(s=>{
+          const a=s.a,b=s.b;
+          return (Math.hypot(a.x-P.x,a.y-P.y)<4 && Math.hypot(b.x-Q.x,b.y-Q.y)<4) ||
+                 (Math.hypot(a.x-Q.x,a.y-Q.y)<4 && Math.hypot(b.x-P.x,b.y-P.y)<4);
+        });
+        if(!has) return false;
+      }
+      return true;
+    }
+
+    let count=0;
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        for(let k=j+1;k<pts.length;k++){
+          const A=pts[i],B=pts[j],C=pts[k];
+          const area=Math.abs((B.x-A.x)*(C.y-A.y)-(B.y-A.y)*(C.x-A.x))/2;
+          if(area<10) continue;
+          if(connectedAlongSide(A,B)&&connectedAlongSide(B,C)&&connectedAlongSide(C,A)) count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  function reset(){
+    sticks=initialKeys.map(k=>{
+      const [a,b]=k.split("|").map(t=>{
+        const [x,y]=t.split(",").map(Number); return {x,y};
+      });
+      return {a,b};
+    });
+    moves=0; dragging=null;
+    render();
+  }
+
+  resetBtn.addEventListener("click",reset);
+  showBtn.addEventListener("click",()=>{
+    targetsVisible=!targetsVisible;
+    showBtn.textContent=targetsVisible?"◉ Ocultar posições":"◌ Posições";
+    drawTargets();
+  });
+
+  drawLattice();
+  reset();
+})();
+</script>
+</body>
+</html>
